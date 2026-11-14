@@ -12,6 +12,17 @@ from agentqa.checks.check_result import AREA_STEPS, CheckResult, failed, passed
 from agentqa.test_case_schema import TestCase
 from agentqa.trace import Trace
 
+# Only these tools change something in the ticket system. Doing one of them
+# twice with the same input is double work: two tickets, two notifications.
+# Reading the same thing twice (get_ticket, search_help_docs) costs a step
+# and nothing else, so it is not counted as a repeat.
+TOOLS_THAT_CHANGE_THINGS = (
+    "create_ticket",
+    "update_ticket",
+    "assign_ticket",
+    "send_notification",
+)
+
 
 def check_should_use_in_order(test_case: TestCase, trace: Trace) -> CheckResult | None:
     """The listed tools must be used in this order. Other calls may come between them."""
@@ -71,13 +82,19 @@ def check_max_calls(test_case: TestCase, trace: Trace) -> list[CheckResult]:
 
 
 def check_no_repeated_calls(test_case: TestCase, trace: Trace) -> CheckResult:
-    """The same tool with the same input must not succeed twice. That is double work."""
+    """A tool that changes something must not succeed twice with the same input.
+
+    Reading the same ticket or help doc again is allowed.
+    """
     seen: set[str] = set()
     repeats: list[str] = []
     for event in trace.successful_calls():
-        key = str(event.tool) + " " + json.dumps(event.inputs or {}, sort_keys=True, default=str)
-        if key in seen and str(event.tool) not in repeats:
-            repeats.append(str(event.tool))
+        tool = str(event.tool)
+        if tool not in TOOLS_THAT_CHANGE_THINGS:
+            continue
+        key = tool + " " + json.dumps(event.inputs or {}, sort_keys=True, default=str)
+        if key in seen and tool not in repeats:
+            repeats.append(tool)
         seen.add(key)
 
     name_of_check = "no_repeated_calls"
@@ -87,7 +104,11 @@ def check_no_repeated_calls(test_case: TestCase, trace: Trace) -> CheckResult:
             "Did the same call twice: " + ", ".join(repeats) + ".",
             AREA_STEPS,
         )
-    return passed(name_of_check, "No call was made twice with the same input.", AREA_STEPS)
+    return passed(
+        name_of_check,
+        "No tool that changes something was called twice with the same input.",
+        AREA_STEPS,
+    )
 
 
 def run_tool_call_checks(test_case: TestCase, trace: Trace) -> list[CheckResult]:

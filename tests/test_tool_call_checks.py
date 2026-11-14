@@ -105,15 +105,54 @@ def test_no_repeated_calls_passes_for_different_inputs():
     assert check_no_repeated_calls(case, trace).passed
 
 
-def test_no_repeated_calls_fails_for_the_same_call_twice():
+def test_no_repeated_calls_fails_when_the_same_ticket_is_created_twice():
     case = make_test_case()
-    same = {"ticket_id": "TCK-1001"}
-    trace = make_trace([ok_call("get_ticket", same), ok_call("get_ticket", same)], reply="Done.")
+    same = {"title": "Laptop", "description": "d", "priority": "high"}
+    trace = make_trace([ok_call("create_ticket", same), ok_call("create_ticket", same)], reply="Done.")
 
     result = check_no_repeated_calls(case, trace)
 
     assert not result.passed
-    assert "get_ticket" in result.message
+    assert "create_ticket" in result.message
+
+
+def test_reading_the_same_ticket_twice_is_allowed():
+    case = make_test_case()
+    same = {"ticket_id": "TCK-1001"}
+    trace = make_trace([ok_call("get_ticket", same), ok_call("get_ticket", same)], reply="Done.")
+
+    assert check_no_repeated_calls(case, trace).passed
+
+
+def test_searching_the_same_help_docs_twice_is_allowed():
+    case = make_test_case()
+    same = {"query": "vpn"}
+    trace = make_trace(
+        [ok_call("search_help_docs", same), ok_call("search_help_docs", same)],
+        reply="Done.",
+    )
+
+    assert check_no_repeated_calls(case, trace).passed
+
+
+def test_a_repeated_change_is_found_even_between_repeated_reads():
+    case = make_test_case()
+    read = {"ticket_id": "TCK-1001"}
+    change = {"ticket_id": "TCK-1001", "status": "closed"}
+    trace = make_trace(
+        [
+            ok_call("get_ticket", read),
+            ok_call("update_ticket", change),
+            ok_call("get_ticket", read),
+            ok_call("update_ticket", change),
+        ],
+        reply="Done.",
+    )
+
+    result = check_no_repeated_calls(case, trace)
+
+    assert not result.passed
+    assert result.message == "Did the same call twice: update_ticket."
 
 
 def test_a_failed_retry_is_not_repeated_work():

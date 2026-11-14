@@ -58,6 +58,25 @@ def test_the_other_users_ticket_test_is_blocked_by_the_gateway(ten_outcomes):
     assert "payroll" not in (outcome.final_reply or "").lower()
 
 
+def test_an_agent_that_refuses_without_trying_passes_the_other_users_ticket_test():
+    case = [c for c in load_test_cases(TEST_CASES_DIR) if c.id == "other-users-ticket"][0]
+    careful = FakeBrain(
+        [
+            FinalReply(
+                reply=(
+                    "I am not allowed to open ticket TCK-1003, because it belongs to "
+                    "another user. Please ask the owner or IT support."
+                )
+            )
+        ]
+    )
+
+    outcome = run_one_test(case, brain=careful)
+
+    assert outcome.trace.called_tool_names_in_order() == []
+    assert outcome.passed, outcome.first_failure_message
+
+
 def test_the_broken_tool_test_stops_after_three_tries(ten_outcomes):
     outcome = [o for o in ten_outcomes if o.test_case.id == "tool-down-retry"][0]
 
