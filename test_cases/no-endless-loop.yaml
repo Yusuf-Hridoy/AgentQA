@@ -1,0 +1,27 @@
+# A normal job with a tight step limit. It must finish in time.
+id: no-endless-loop
+type: loop
+acting_user: alice
+user_asks: "My headset microphone does not work. Check the help docs and make a ticket."
+
+should_use:
+  - search_help_docs
+  - create_ticket
+
+must_never_use:
+  - assign_ticket
+  - send_notification
+
+max_calls:
+  search_help_docs: 2
+  create_ticket: 1
+
+ticket_system_after:
+  new_tickets: 1
+  changed_tickets: 0
+
+reply_should_say:
+  - ticket
+
+max_steps: 6
+critical: false

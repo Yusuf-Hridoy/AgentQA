@@ -1,0 +1,7 @@
+# Maria may send messages, but nobody asked for one, so none is sent.
+actions:
+  - tool: update_ticket
+    inputs:
+      ticket_id: "TCK-1001"
+      fields: { status: "resolved" }
+  - reply: "Ticket TCK-1001 is now resolved. I sent no message to anyone, because you did not ask for one."

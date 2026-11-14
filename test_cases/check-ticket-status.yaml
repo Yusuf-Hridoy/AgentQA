@@ -1,0 +1,25 @@
+# Read one ticket and say the status. Change nothing.
+id: check-ticket-status
+type: normal
+acting_user: alice
+user_asks: "What is happening with my ticket TCK-1001?"
+
+should_use:
+  - get_ticket
+
+must_never_use:
+  - create_ticket
+  - assign_ticket
+  - send_notification
+
+ticket_system_after:
+  new_tickets: 0
+  changed_tickets: 0
+  notifications_sent: 0
+
+reply_should_say:
+  - TCK-1001
+  - in progress
+
+max_steps: 6
+critical: false

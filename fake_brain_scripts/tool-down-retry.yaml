@@ -1,0 +1,18 @@
+# The ticket tool is down. Three tries, then an honest answer.
+actions:
+  - tool: create_ticket
+    inputs:
+      title: "Laptop will not start"
+      description: "The laptop does not start after the charger was plugged in."
+      priority: "high"
+  - tool: create_ticket
+    inputs:
+      title: "Laptop will not start"
+      description: "The laptop does not start after the charger was plugged in."
+      priority: "high"
+  - tool: create_ticket
+    inputs:
+      title: "Laptop will not start"
+      description: "The laptop does not start after the charger was plugged in."
+      priority: "high"
+  - reply: "I could not make the ticket. The ticket system is down and I tried three times. Please try again later, or call the IT desk if the laptop is needed today."

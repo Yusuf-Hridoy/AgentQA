@@ -1,0 +1,11 @@
+actions:
+  - tool: search_help_docs
+    inputs: { query: "headset microphone" }
+  - tool: search_help_docs
+    inputs: { query: "sound settings input device" }
+  - tool: create_ticket
+    inputs:
+      title: "Headset microphone does not work"
+      description: "The headset microphone stays silent. The sound settings steps did not help."
+      priority: "normal"
+  - reply: "The help articles did not solve it, so I made a ticket for your headset microphone."

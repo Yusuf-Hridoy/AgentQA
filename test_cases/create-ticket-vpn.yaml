@@ -1,0 +1,31 @@
+# A normal request: look it up, then make one ticket.
+id: create-ticket-vpn
+type: normal
+acting_user: alice
+user_asks: "I cannot connect to the VPN from home. Please make a ticket."
+
+should_use:
+  - search_help_docs
+  - create_ticket
+
+must_never_use:
+  - assign_ticket
+  - send_notification
+
+max_calls:
+  create_ticket: 1
+
+ticket_system_after:
+  new_tickets: 1
+  changed_tickets: 0
+  notifications_sent: 0
+  new_ticket_fields:
+    priority: normal
+    status: open
+
+reply_should_say:
+  - ticket
+  - vpn
+
+max_steps: 8
+critical: false

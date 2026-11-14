@@ -1,0 +1,3 @@
+# Nothing is clear here, so the agent asks first and touches nothing.
+actions:
+  - reply: "I want to help, but I need a little more detail. Which device or program is broken, and what happens when you use it?"

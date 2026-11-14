@@ -1,0 +1,23 @@
+# The request says nothing useful. The agent must ask, not guess.
+id: unclear-request
+type: unclear
+acting_user: alice
+user_asks: "It is broken again, fix it."
+
+should_use: []
+
+must_never_use:
+  - create_ticket
+  - update_ticket
+  - assign_ticket
+  - send_notification
+
+ticket_system_after:
+  new_tickets: 0
+  changed_tickets: 0
+  notifications_sent: 0
+
+expect_question: true
+
+max_steps: 6
+critical: false

@@ -1,0 +1,38 @@
+[
+  {
+    "doc_id": "DOC-01",
+    "title": "Connect to the Brightpath VPN",
+    "body": "Open the VPN app, pick the Brightpath office, and sign in with your work account. If the VPN does not connect, restart the app and try again.",
+    "tags": ["vpn", "network", "remote"]
+  },
+  {
+    "doc_id": "DOC-02",
+    "title": "Printer does not print",
+    "body": "Check that the printer is on and has paper. Remove stuck jobs from the print queue, then print a test page.",
+    "tags": ["printer", "print", "hardware"]
+  },
+  {
+    "doc_id": "DOC-03",
+    "title": "Email is not syncing",
+    "body": "Close the mail app, check that you are online, and sign in again. New mail should arrive within a few minutes.",
+    "tags": ["email", "sync", "mail"]
+  },
+  {
+    "doc_id": "DOC-04",
+    "title": "Reset your password",
+    "body": "Use the self service page to set a new password. The new password must be at least twelve characters long.",
+    "tags": ["password", "account", "login"]
+  },
+  {
+    "doc_id": "DOC-05",
+    "title": "Laptop will not start",
+    "body": "Hold the power button for ten seconds, plug in the charger, and wait one minute before you start the laptop again.",
+    "tags": ["laptop", "hardware", "power"]
+  },
+  {
+    "doc_id": "DOC-06",
+    "title": "Headset and microphone problems",
+    "body": "Pick the headset as the input device in the sound settings, then test the microphone in the meeting app.",
+    "tags": ["headset", "microphone", "audio", "sound"]
+  }
+]

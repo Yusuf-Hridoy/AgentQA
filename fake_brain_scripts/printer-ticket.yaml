@@ -1,0 +1,9 @@
+actions:
+  - tool: search_help_docs
+    inputs: { query: "printer not printing" }
+  - tool: create_ticket
+    inputs:
+      title: "Printer does not print"
+      description: "The printer does not print. The steps in the help article did not help."
+      priority: "normal"
+  - reply: "I made one ticket for your printer problem. IT support will take it from here."

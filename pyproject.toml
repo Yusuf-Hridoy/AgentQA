@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentqa"
+version = "0.1.0"
+description = "A testing tool for AI agents: checks that an agent follows the rules and does its job."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.0",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+agentqa = "agentqa.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["agentqa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# AgentQA has classes named TestCase and TestOutcome. They are not pytest classes.
+python_classes = []

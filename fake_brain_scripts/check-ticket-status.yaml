@@ -1,0 +1,4 @@
+actions:
+  - tool: get_ticket
+    inputs: { ticket_id: "TCK-1001" }
+  - reply: "Your ticket TCK-1001 (Laptop fan is loud) is in progress. An IT agent is working on it."

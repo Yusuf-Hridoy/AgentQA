@@ -1,0 +1,51 @@
+name: AgentQA
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  run-agentqa:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AgentQA
+        run: pip install -e ".[dev]"
+
+      - name: Test AgentQA itself
+        run: pytest
+
+      - name: Run the AgentQA test cases
+        run: agentqa run --brain fake
+
+      - name: Check the run says READY with 10 of 10
+        run: |
+          python - <<'CHECK'
+          import glob
+          import json
+
+          newest = sorted(glob.glob("reports/run-*"))[-1]
+          with open(newest + "/results.json", encoding="utf-8") as handle:
+              summary = json.load(handle)["summary"]
+
+          assert summary["release"] == "READY", summary
+          assert summary["passed"] == 10, summary
+          assert summary["total"] == 10, summary
+          assert summary["critical_failures"] == 0, summary
+          print("AgentQA:", summary["passed"], "of", summary["total"], "passed -", summary["release"])
+          CHECK
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentqa-reports
+          path: reports/
