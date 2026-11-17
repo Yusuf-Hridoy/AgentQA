@@ -127,6 +127,17 @@ at all - so the user who had asked for a ticket did not get one. The rule said t
 first; it never said searching does not replace the ticket. The second sentence says it.
 The test cases were left exactly as they were.
 
+**Added on 2026-11-18**, on purpose and with sign-off, one more rule:
+
+> Use priority normal unless the user says the problem is urgent.
+
+**Why.** `create-ticket-vpn` and `printer-ticket` both expect the new ticket to come out
+with `priority: normal`, and nothing in the user's words asks for anything else. Two Groq
+runs (2026-11-15 and 2026-11-17) filed the VPN ticket as `high` and failed on
+"priority is high, expected normal". The rules never said which priority to pick, so the
+test was again asking for behaviour it had not specified. The rule now says it. The test
+cases were left exactly as they were.
+
 This changes the agent, so results from before and after are **not comparable**. That is
 what `agent_rules_hash` in `results.json` is for: if two runs show different hashes, they
 were not testing the same agent.

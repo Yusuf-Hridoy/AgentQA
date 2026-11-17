@@ -366,6 +366,11 @@ def test_the_rules_tell_the_agent_to_search_the_help_docs_first():
     assert "Before making a new ticket" in AGENT_RULES
 
 
+def test_the_rules_say_which_priority_a_new_ticket_gets():
+    """A deliberate rule change. The hash below is what makes runs comparable."""
+    assert "Use priority normal unless the user says the problem is urgent" in AGENT_RULES
+
+
 def test_the_agent_is_shown_the_rules_it_is_judged_against():
     conversation = starting_conversation(case_called("printer-ticket"), "employee")
 
