@@ -23,5 +23,9 @@ ticket_system_after:
 reply_should_say:
   - ticket
 
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Tells the user a ticket was made for the headset microphone problem.
+
 max_steps: 6
 critical: false

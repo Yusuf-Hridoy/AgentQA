@@ -4,6 +4,12 @@ reports/run-<date>_<time>/
     results.json        the whole run
     traces/<test id>.json   one trace per test
 
+results.json holds a run_info block, so two results can be compared with no
+guessing: which model answered, which judge judged, and whether the agent rules
+or the test cases changed between the runs.
+
+No API key is ever written here. Only names, models and hashes.
+
 The Phase 4 HTML report will be built from results.json, so keep it tidy.
 """
 
@@ -20,7 +26,7 @@ from agentqa.release_decision import ReleaseDecision
 
 RESULTS_FILE_NAME = "results.json"
 TRACES_FOLDER_NAME = "traces"
-RESULTS_SCHEMA_VERSION = 1
+RESULTS_SCHEMA_VERSION = 2
 
 
 def run_folder_name(when: datetime | None = None) -> str:
@@ -61,10 +67,12 @@ def build_results(
     started_at: datetime,
     finished_at: datetime,
     cases_folder: str | None = None,
+    run_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "agentqa_version": __version__,
         "schema_version": RESULTS_SCHEMA_VERSION,
+        "run_info": dict(run_info or {}),
         "run": {
             "brain": brain_name,
             "started_at": started_at.isoformat(timespec="seconds"),
@@ -86,10 +94,19 @@ def save_run(
     finished_at: datetime,
     cases_folder: str | None = None,
     reports_dir: str | Path | None = None,
+    run_info: dict[str, Any] | None = None,
 ) -> Path:
     """Write results.json and one trace per test. Gives back the run folder."""
     folder = make_run_folder(reports_dir)
     write_traces(folder, outcomes)
-    results = build_results(outcomes, decision, brain_name, started_at, finished_at, cases_folder)
+    results = build_results(
+        outcomes,
+        decision,
+        brain_name,
+        started_at,
+        finished_at,
+        cases_folder,
+        run_info=run_info,
+    )
     _write_json(folder / RESULTS_FILE_NAME, results)
     return folder

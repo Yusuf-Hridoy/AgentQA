@@ -62,6 +62,9 @@ class TestCase(BaseModel):
     ticket_system_after: TicketSystemAfter = Field(default_factory=TicketSystemAfter)
 
     reply_should_say: list[str] = Field(default_factory=list)
+    # One plain-English sentence for the AI judge. Used instead of
+    # reply_should_say when the run has a judge.
+    reply_should_mean: str | None = None
     reply_must_not_say: list[str] = Field(default_factory=list)
     expect_question: bool = False
 

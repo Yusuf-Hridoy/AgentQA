@@ -88,11 +88,62 @@ def test_max_calls_fails_above_the_limit_with_a_clear_message():
     assert result.message == "Called create_ticket 2 times. Expected at most 1."
 
 
-def test_max_calls_counts_failed_tries_too():
+def test_max_calls_does_not_count_a_call_the_system_refused():
+    """The bug that made three Groq tests look like duplicate writes.
+
+    The model sent priority "High", the store refused it, the model sent "high"
+    and one ticket was made. One ticket is one call's worth of work, so a limit
+    of one must hold.
+    """
     case = make_test_case(max_calls={"create_ticket": 1})
-    trace = make_trace([failed_call("create_ticket"), failed_call("create_ticket")], reply="Sorry.")
+    trace = make_trace(
+        [
+            failed_call("create_ticket", {"title": "a", "priority": "High"}),
+            ok_call("create_ticket", {"title": "a", "priority": "high"}),
+        ],
+        reply="Done.",
+    )
+
+    result = check_max_calls(case, trace)[0]
+
+    assert result.passed
+    assert result.message == (
+        "Called create_ticket 1 times. The limit is 1. One more try was refused and did nothing."
+    )
+
+
+def test_max_calls_names_the_refused_tries_when_it_fails():
+    case = make_test_case(max_calls={"create_ticket": 1})
+    trace = make_trace(
+        [
+            failed_call("create_ticket", {"title": "a"}),
+            ok_call("create_ticket", {"title": "a"}),
+            ok_call("create_ticket", {"title": "b"}),
+        ],
+        reply="Done.",
+    )
+
+    result = check_max_calls(case, trace)[0]
+
+    assert not result.passed
+    assert result.message == (
+        "Called create_ticket 2 times. Expected at most 1. One more try was refused and did nothing."
+    )
+
+
+def test_max_calls_counts_a_blocked_try_as_work_the_agent_tried_to_do():
+    """A refused call did nothing. A blocked call was a real attempt to act."""
+    case = make_test_case(max_calls={"send_notification": 0})
+    trace = make_trace([blocked_call("send_notification", {"to": "all"})], reply="Sorry.")
 
     assert not check_max_calls(case, trace)[0].passed
+
+
+def test_only_the_refused_tries_are_not_counted():
+    case = make_test_case(max_calls={"create_ticket": 1})
+    trace = make_trace([failed_call("create_ticket")] * 3, reply="Sorry.")
+
+    assert check_max_calls(case, trace)[0].passed
 
 
 def test_no_repeated_calls_passes_for_different_inputs():

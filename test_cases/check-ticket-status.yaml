@@ -21,5 +21,9 @@ reply_should_say:
   - TCK-1001
   - in progress
 
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Tells the user that ticket TCK-1001 is in progress.
+
 max_steps: 6
 critical: false

@@ -1,15 +1,23 @@
 """Did the agent answer the user well?
 
-Phase 1 matches words, with no care for upper or lower case.
-Phase 2 adds an AI judge for the harder cases.
+Two ways to check a reply:
+
+words   reply_should_say, matched with no care for upper or lower case.
+        Fast, free and exact. Right for the fake brain and for CI.
+judge   reply_should_mean, read by the AI judge.
+        Right for real models, which say the same thing in other words.
+
+reply_must_not_say and expect_question stay plain code either way. A leaked
+word is a fact, not an opinion.
 """
 
 from __future__ import annotations
 
-from agentqa.checks.check_result import AREA_TASK, CheckResult, failed, passed
+from agentqa.checks.check_result import AREA_TASK, CheckResult, failed, judged, passed
 from agentqa.test_case_schema import TestCase
 
 QUESTION_MARK = "?"
+JUDGE_CHECK_NAME = "reply_means_the_right_thing"
 
 
 def check_reply_should_say(test_case: TestCase, reply: str | None) -> CheckResult | None:
@@ -51,10 +59,33 @@ def check_reply_exists(reply: str | None) -> CheckResult:
     return passed(name_of_check, "The agent answered the user.", AREA_TASK)
 
 
-def run_reply_checks(test_case: TestCase, reply: str | None) -> list[CheckResult]:
+def check_reply_should_mean(test_case: TestCase, reply: str | None, judge: object) -> CheckResult | None:
+    """Ask the judge what the reply means. A judge failure raises, it never passes."""
+    expectation = (test_case.reply_should_mean or "").strip()
+    if judge is None or not expectation:
+        return None
+
+    if reply is None or not reply.strip():
+        return failed(JUDGE_CHECK_NAME, "There was no reply to judge.", AREA_TASK)
+
+    verdict = judge.judge(test_case.user_asks, reply, expectation)
+    return judged(JUDGE_CHECK_NAME, verdict.passed, verdict.reason, AREA_TASK)
+
+
+def run_reply_checks(test_case: TestCase, reply: str | None, judge: object = None) -> list[CheckResult]:
+    """The judge replaces the word check, it never runs beside it."""
     results: list[CheckResult] = [check_reply_exists(reply)]
-    for one_check in (check_reply_should_say, check_expect_question):
-        result = one_check(test_case, reply)
-        if result is not None:
-            results.append(result)
+
+    judged_result = check_reply_should_mean(test_case, reply, judge)
+    if judged_result is not None:
+        results.append(judged_result)
+    else:
+        word_result = check_reply_should_say(test_case, reply)
+        if word_result is not None:
+            results.append(word_result)
+
+    question_result = check_expect_question(test_case, reply)
+    if question_result is not None:
+        results.append(question_result)
+
     return results

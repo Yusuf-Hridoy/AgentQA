@@ -69,11 +69,41 @@ def test_a_failed_test_blocks_the_release_and_gives_exit_code_one(tmp_path):
     assert "Release: BLOCKED" in result.output
 
 
-def test_a_brain_from_a_later_phase_gives_a_setup_error(tmp_path):
+def test_a_missing_key_gives_a_setup_error(tmp_path, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
     result = runner.invoke(app, ["run", "--brain", "groq", "--reports-dir", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Phase 2" in result.output
+    assert "Set GROQ_API_KEY in your .env file." in result.output
+    assert not list(tmp_path.glob("run-*"))
+
+
+def test_an_unknown_brain_name_gives_a_setup_error(tmp_path):
+    result = runner.invoke(app, ["run", "--brain", "magic", "--reports-dir", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "no brain called magic" in result.output
+
+
+def test_an_unknown_judge_mode_gives_a_setup_error(tmp_path):
+    result = runner.invoke(
+        app, ["run", "--brain", "fake", "--judge", "vibes", "--reports-dir", str(tmp_path)]
+    )
+
+    assert result.exit_code == 2
+    assert "no judge mode called vibes" in result.output
+
+
+def test_the_header_and_summary_say_the_judge_tokens_and_errors(tmp_path):
+    result = runner.invoke(
+        app,
+        ["run", "--brain", "fake", "--only", "printer-ticket", "--reports-dir", str(tmp_path)],
+    )
+
+    assert "judge: words" in result.output
+    assert "Errors: 0" in result.output
+    assert "Judge tokens: 0" in result.output
 
 
 def test_a_bad_test_case_folder_gives_a_setup_error(tmp_path):

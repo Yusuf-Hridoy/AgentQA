@@ -18,7 +18,14 @@ from typing import Any
 
 import yaml
 
-from agentqa.brains.brain_interface import BrainAction, FinalReply, Message, ToolCall, ToolSpec
+from agentqa.brains.brain_interface import (
+    BrainAction,
+    FinalReply,
+    Message,
+    TokenUsage,
+    ToolCall,
+    ToolSpec,
+)
 from agentqa.project_paths import FAKE_BRAIN_SCRIPTS_DIR
 
 NO_MORE_ACTIONS_REPLY = "The fake brain script has no more actions."
@@ -84,6 +91,10 @@ class FakeBrain:
     def for_test_case(cls, test_id: str, folder: str | Path | None = None) -> "FakeBrain":
         directory = Path(folder) if folder else FAKE_BRAIN_SCRIPTS_DIR
         return cls.from_script_file(directory / (test_id + ".yaml"))
+
+    def usage_totals(self) -> TokenUsage:
+        """The fake brain costs nothing, so every number is zero."""
+        return TokenUsage()
 
     def next_action(self, conversation: list[Message], tools: list[ToolSpec]) -> BrainAction:
         """Give the next scripted action. The conversation is ignored on purpose."""

@@ -1,5 +1,6 @@
 reports/
 .venv/
+.venv*/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -8,3 +9,5 @@ dist/
 .pytest_cache/
 .deepeval/
 .deepeval-cache.json
+.env
+.agentqa_cache/

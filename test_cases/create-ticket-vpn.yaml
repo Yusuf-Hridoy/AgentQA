@@ -27,5 +27,9 @@ reply_should_say:
   - ticket
   - vpn
 
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Tells the user a ticket was made for the VPN problem.
+
 max_steps: 8
 critical: false

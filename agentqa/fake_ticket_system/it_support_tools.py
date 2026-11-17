@@ -6,12 +6,25 @@ Each tool has a pydantic input shape, so wrong input is caught before the tool r
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from agentqa.brains.brain_interface import ToolSpec
-from agentqa.fake_ticket_system.ticket_store import TicketStore
+from agentqa.fake_ticket_system.ticket_store import (
+    ALLOWED_PRIORITY,
+    ALLOWED_STATUS,
+    UPDATABLE_FIELDS,
+    TicketStore,
+)
+
+# The store accepts these values and no others, lower case. The agent has to be
+# told so in the tool itself: a model that has to guess sends "High" or
+# "Medium", the store refuses it, and the agent spends a second call putting it
+# right. That second call looks like a duplicate write in the report.
+_PRIORITY_VALUES = ", ".join(ALLOWED_PRIORITY)
+_STATUS_VALUES = ", ".join(ALLOWED_STATUS)
+_UPDATABLE = ", ".join(UPDATABLE_FIELDS)
 
 
 class ToolInput(BaseModel):
@@ -31,12 +44,25 @@ class GetTicketInput(ToolInput):
 class CreateTicketInput(ToolInput):
     title: str = Field(min_length=1)
     description: str = Field(min_length=1)
-    priority: str = "normal"
+    # A Literal, so the allowed values reach the model as a real JSON schema
+    # enum instead of a bare "string".
+    priority: Literal["low", "normal", "high"] = Field(
+        default="normal",
+        description="One of: " + _PRIORITY_VALUES + ". Lower case. Leave it out for a normal ticket.",
+    )
 
 
 class UpdateTicketInput(ToolInput):
     ticket_id: str = Field(min_length=1)
-    fields: dict[str, Any] = Field(min_length=1)
+    fields: dict[str, Any] = Field(
+        min_length=1,
+        description=(
+            "The fields to change. You may change: " + _UPDATABLE + ". "
+            "status must be one of: " + _STATUS_VALUES + ". "
+            "priority must be one of: " + _PRIORITY_VALUES + ". "
+            "All of these values are lower case."
+        ),
+    )
 
 
 class AssignTicketInput(ToolInput):
@@ -112,13 +138,20 @@ TOOLS: dict[str, Tool] = {
     ),
     "create_ticket": Tool(
         name="create_ticket",
-        description="Make a new ticket for the user you are helping.",
+        description=(
+            "Make a new ticket for the user you are helping. "
+            "priority is one of " + _PRIORITY_VALUES + ", lower case; leave it out for a normal ticket."
+        ),
         input_model=CreateTicketInput,
         run=_run_create_ticket,
     ),
     "update_ticket": Tool(
         name="update_ticket",
-        description="Change a ticket. You may change status, priority, title or description.",
+        description=(
+            "Change a ticket. You may change " + _UPDATABLE + ". "
+            "status is one of " + _STATUS_VALUES + " and priority is one of " + _PRIORITY_VALUES
+            + ", all lower case."
+        ),
         input_model=UpdateTicketInput,
         run=_run_update_ticket,
     ),

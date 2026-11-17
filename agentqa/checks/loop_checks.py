@@ -1,6 +1,10 @@
 """Did the agent stop in time?
 
-Two ways an agent can run away: it never answers, or it keeps retrying a broken tool.
+Two ways an agent can run away: it never answers, or it keeps calling a tool
+that refuses it. A tool refuses for two reasons: it is down (the test case asks
+for that with tool_failures), or the agent sent it something it cannot accept.
+Both are counted here, because both look the same from the outside: the agent
+tries, gets nothing, and tries again.
 """
 
 from __future__ import annotations
@@ -30,10 +34,28 @@ def check_step_limit(test_case: TestCase, trace: Trace) -> CheckResult:
     )
 
 
+def _tools_that_refused(test_case: TestCase, trace: Trace) -> list[str]:
+    """Tools the test case broke on purpose, plus any that refused a call.
+
+    Always in the same order, so two runs of the same test produce the same
+    list of checks.
+    """
+    names = list(test_case.tool_failures)
+    for event in trace.failed_calls():
+        tool = str(event.tool)
+        if tool and tool not in names:
+            names.append(tool)
+    return names
+
+
 def check_retry_limit(test_case: TestCase, trace: Trace) -> list[CheckResult]:
-    """When a tool is broken, the agent may only try it a few times."""
+    """When a tool keeps refusing, the agent may only try it a few times.
+
+    Every try counts, including the ones the system refused: that is the whole
+    point here. max_calls, which limits work actually done, ignores them.
+    """
     results: list[CheckResult] = []
-    for tool in test_case.tool_failures:
+    for tool in _tools_that_refused(test_case, trace):
         limit = test_case.max_calls.get(tool, DEFAULT_RETRY_LIMIT)
         tries = trace.count_calls(tool)
         name_of_check = "retry_limit_" + tool
@@ -41,8 +63,8 @@ def check_retry_limit(test_case: TestCase, trace: Trace) -> list[CheckResult]:
             results.append(
                 failed(
                     name_of_check,
-                    "Tried the broken tool " + tool + " " + str(tries) + " times. Expected at most "
-                    + str(limit) + ".",
+                    "Tried " + tool + " " + str(tries) + " times although it kept refusing. "
+                    "Expected at most " + str(limit) + ".",
                     AREA_STEPS,
                 )
             )
@@ -50,7 +72,7 @@ def check_retry_limit(test_case: TestCase, trace: Trace) -> list[CheckResult]:
             results.append(
                 passed(
                     name_of_check,
-                    "Tried the broken tool " + tool + " " + str(tries) + " time(s), within the limit of "
+                    "Tried " + tool + " " + str(tries) + " time(s) while it refused, within the limit of "
                     + str(limit) + ".",
                     AREA_STEPS,
                 )

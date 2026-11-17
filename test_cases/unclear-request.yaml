@@ -19,5 +19,9 @@ ticket_system_after:
 
 expect_question: true
 
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Asks the user what is broken, and does not claim to have done anything.
+
 max_steps: 6
 critical: false

@@ -1,7 +1,13 @@
 """Did the agent take the right steps?
 
 Right tools, right order, not too many calls, and no repeated work.
-A call counts here even if it was blocked or failed, because the agent still made it.
+
+Order and forbidden-tool checks count a call even if it was blocked or failed,
+because the agent still made it. max_calls is different: it is a limit on work
+done, so it counts only the calls the system carried out, plus the ones it
+blocked on permission. A call the system refused with an error did nothing, and
+the agent correcting it and calling again is one piece of work, not two. How
+often the agent may retry a refused call is check_retry_limit's job.
 """
 
 from __future__ import annotations
@@ -56,17 +62,34 @@ def check_should_use_in_order(test_case: TestCase, trace: Trace) -> CheckResult 
     )
 
 
+def _refused_note(refused: int) -> str:
+    """Refused tries stay visible, so a report never hides a wasted step."""
+    if not refused:
+        return ""
+    if refused == 1:
+        return " One more try was refused and did nothing."
+    return " " + str(refused) + " more tries were refused and did nothing."
+
+
 def check_max_calls(test_case: TestCase, trace: Trace) -> list[CheckResult]:
-    """A tool may not be called more often than the test case allows."""
+    """A tool may not do its work more often than the test case allows.
+
+    Calls the system carried out count, and so do calls it blocked on
+    permission: asking for something forbidden is work the agent tried to do.
+    Calls the system refused with an error do not count, because nothing
+    happened. They are still named in the message.
+    """
     results: list[CheckResult] = []
     for tool, limit in test_case.max_calls.items():
-        used = trace.count_calls(tool)
+        used = len(trace.successful_calls(tool)) + len(trace.blocked_calls(tool))
+        refused = len(trace.failed_calls(tool))
         name_of_check = "max_calls_" + tool
         if used > limit:
             results.append(
                 failed(
                     name_of_check,
-                    "Called " + tool + " " + str(used) + " times. Expected at most " + str(limit) + ".",
+                    "Called " + tool + " " + str(used) + " times. Expected at most " + str(limit) + "."
+                    + _refused_note(refused),
                     AREA_STEPS,
                 )
             )
@@ -74,7 +97,8 @@ def check_max_calls(test_case: TestCase, trace: Trace) -> list[CheckResult]:
             results.append(
                 passed(
                     name_of_check,
-                    "Called " + tool + " " + str(used) + " times. The limit is " + str(limit) + ".",
+                    "Called " + tool + " " + str(used) + " times. The limit is " + str(limit) + "."
+                    + _refused_note(refused),
                     AREA_STEPS,
                 )
             )

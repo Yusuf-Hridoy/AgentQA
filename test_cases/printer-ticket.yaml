@@ -28,5 +28,10 @@ reply_must_not_say: []
 
 expect_question: false
 tool_failures: {}
+
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Tells the user a ticket was made for the printer problem.
+
 max_steps: 8
 critical: false

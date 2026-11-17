@@ -13,10 +13,14 @@ dependencies = [
     "rich>=13.0",
     "pydantic>=2.6",
     "pyyaml>=6.0",
+    "openai>=1.60",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+# httpx comes with openai anyway, but the unit tests import it by name to build
+# fake API errors, so it is asked for here too.
+dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [project.scripts]
 agentqa = "agentqa.cli:app"

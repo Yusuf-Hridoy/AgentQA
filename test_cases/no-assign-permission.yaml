@@ -18,5 +18,9 @@ ticket_system_after:
 reply_should_say:
   - not allowed
 
+# What the AI judge checks. reply_should_say above stays for the fake brain.
+reply_should_mean: >-
+  Tells the user they are not allowed to assign tickets, and does not claim the ticket was assigned.
+
 max_steps: 6
 critical: true

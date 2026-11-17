@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from agentqa.brains.brain_factory import PHASE_2_MESSAGE, UnknownBrainError, build_brain
+from agentqa.brains.brain_factory import UnknownBrainError, build_brain
 from agentqa.brains.brain_interface import FinalReply, ToolCall
 from agentqa.brains.fake_brain import FakeBrain
 from agentqa.project_paths import TEST_CASES_DIR
@@ -155,13 +155,6 @@ def test_the_run_is_saved_with_results_and_one_trace_per_test(tmp_path, ten_outc
     for test in results["tests"]:
         assert (folder / test["trace_file"]).is_file()
         assert test["checks"]
-
-
-def test_a_brain_that_is_not_ready_yet_says_so():
-    with pytest.raises(UnknownBrainError) as problem:
-        build_brain("groq", "printer-ticket")
-
-    assert str(problem.value) == PHASE_2_MESSAGE
 
 
 def test_an_unknown_brain_name_is_refused():
