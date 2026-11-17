@@ -417,6 +417,28 @@ lot. If your Ollama is older and refuses that setting, AgentQA drops it and carr
 the model will think out loud (those `<think>` blocks are stripped from the reply either
 way). A smaller model such as `AGENTQA_LOCAL_MODEL=qwen3.5:2b` is faster still.
 
+## Known issues
+
+**Gemini as the agent brain is experimental.** On longer conversations a run can stop with:
+
+```
+Gemini gave error 400: Function call is missing a thought_signature in functionCall parts.
+```
+
+Gemini 3 hangs a `thought_signature` on every tool call it makes and refuses the next
+request if that signature does not come back. AgentQA carries it back untouched
+(`provider_extra` in `agentqa/brains/openai_compatible_brain.py`), and most tests pass, but
+the ones with the longest tool conversations still hit it: in the run on 2026-11-17,
+`no-endless-loop` and `tool-down-retry` both ended as ERROR this way.
+
+An ERROR costs one test, not the run, and the rest of the run finishes as normal — but it
+also counts as not passed in all three areas, so a Gemini run can come back BLOCKED for
+this reason alone. For a dependable real-model run use `--brain groq` or `--brain local`.
+
+**The judge is not affected.** `--judge gemini` sends one short request with no tools, so
+there is no thought signature to carry, and `agentqa check-judge` is unaffected too. Gemini
+is a fine judge; it is only Gemini as the brain under test that is shaky.
+
 ## Run the unit tests
 
 These test AgentQA itself, not the agent. They never touch the network and never need a key:
