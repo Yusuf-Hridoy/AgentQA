@@ -45,6 +45,16 @@ def test_one_test_passes_and_the_exit_code_is_zero(tmp_path):
     assert "printer-ticket" in result.output
 
 
+def test_the_header_says_one_test_not_one_tests(tmp_path):
+    result = runner.invoke(
+        app,
+        ["run", "--brain", "fake", "--only", "printer-ticket", "--reports-dir", str(tmp_path)],
+    )
+
+    assert "1 test " in result.output
+    assert "1 tests" not in result.output
+
+
 def test_all_ten_tests_pass_from_the_command_line(tmp_path):
     result = runner.invoke(
         app,

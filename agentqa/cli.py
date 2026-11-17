@@ -83,6 +83,11 @@ def _thousands(number: int) -> str:
     return format(int(number), ",")
 
 
+def _counted(number: int, thing: str) -> str:
+    """Say '1 test', not '1 tests'."""
+    return str(number) + " " + thing + ("" if number == 1 else "s")
+
+
 def _print_one_result(outcome: TestOutcome) -> None:
     """The word is always printed, not only the colour."""
     word = STATUS_WORD.get(outcome.status, "FAIL")
@@ -154,7 +159,7 @@ def run(
     console.print("")
     console.print(
         Text(
-            "AgentQA " + dot + " " + str(len(test_cases)) + " tests "
+            "AgentQA " + dot + " " + _counted(len(test_cases), "test") + " "
             + dot + " brain: " + _header_brain(brain)
             + " " + dot + " judge: " + (judge_model or "words"),
             style="bold",
@@ -234,7 +239,7 @@ def check_judge(
     console.print("")
     console.print(
         Text(
-            "AgentQA check-judge " + dot + " " + str(len(labelled)) + " examples "
+            "AgentQA check-judge " + dot + " " + _counted(len(labelled), "example") + " "
             + dot + " judge: " + reply_judge.model + " " + dot + " " + JUDGE_PROMPT_VERSION,
             style="bold",
         )
