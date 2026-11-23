@@ -11,6 +11,8 @@ What this file is careful about:
 * Broken JSON in the tool inputs is passed on as {"_raw": "..."} instead of
   being hidden. The gateway then refuses it and the trace shows the mistake.
 * <think> blocks are cut out of the final reply.
+* An empty answer is reported as empty, never replaced with words of ours.
+  The reply checks fail it, and the judge is never shown it.
 * Tokens and time are counted for every call.
 * After the SDK has retried, a failure becomes a BrainError, which marks one
   test ERROR. It never stops the run.
@@ -42,7 +44,6 @@ DEFAULT_MAX_RETRIES = 3
 TEMPERATURE = 0.0
 
 RAW_INPUT_KEY = "_raw"
-EMPTY_ANSWER_REPLY = "The model gave no answer."
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 _OPEN_THINK = re.compile(r"<think>.*$", re.DOTALL | re.IGNORECASE)
@@ -223,6 +224,7 @@ class OpenAICompatibleBrain:
         self._waiting_tool_calls: list[ToolCall] = []
         self._send_parallel_flag = preset.send_parallel_tool_calls
         self._extra_body = dict(preset.extra_body)
+        self._reasoning_effort = preset.reasoning_effort
 
         if client is not None:
             self.client = client
@@ -250,8 +252,9 @@ class OpenAICompatibleBrain:
         answer = self._ask(conversation_as_openai(conversation), tools_as_openai(tools))
         choices = list(getattr(answer, "choices", None) or [])
         if not choices:
-            return FinalReply(reply=EMPTY_ANSWER_REPLY)
+            return FinalReply(reply="", finish_reason=None, empty_reply=True)
         choice = choices[0]
+        finish_reason = str(getattr(choice, "finish_reason", "") or "") or None
 
         raw_calls = list(getattr(choice.message, "tool_calls", None) or [])
         if raw_calls:
@@ -260,7 +263,7 @@ class OpenAICompatibleBrain:
             return calls[0]
 
         reply = strip_thinking(str(getattr(choice.message, "content", "") or ""))
-        return FinalReply(reply=reply or EMPTY_ANSWER_REPLY)
+        return FinalReply(reply=reply, finish_reason=finish_reason, empty_reply=not reply)
 
     # ---------- talking to the provider ----------
 
@@ -279,6 +282,8 @@ class OpenAICompatibleBrain:
                 fields["parallel_tool_calls"] = False
         if self._extra_body:
             fields["extra_body"] = dict(self._extra_body)
+        if self._reasoning_effort:
+            fields["reasoning_effort"] = self._reasoning_effort
         return fields
 
     def _ask(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> Any:
@@ -316,12 +321,13 @@ class OpenAICompatibleBrain:
         try:
             return self.client.chat.completions.create(**self._request_fields(messages, tools))
         except openai.BadRequestError:
-            if not (self._send_parallel_flag or self._extra_body):
+            if not (self._send_parallel_flag or self._extra_body or self._reasoning_effort):
                 raise
             # Some providers refuse parallel_tool_calls or the thinking switch.
             # Drop them for the rest of the run and ask once more.
             self._send_parallel_flag = False
             self._extra_body = {}
+            self._reasoning_effort = None
             return self.client.chat.completions.create(**self._request_fields(messages, tools))
 
     def _count(self, answer: Any, time_ms: float) -> None:

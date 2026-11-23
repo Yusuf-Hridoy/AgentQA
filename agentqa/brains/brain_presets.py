@@ -38,6 +38,9 @@ class BrainPreset:
     needs_key: bool
     # Sent with the first request. Dropped and retried once if the provider says no.
     extra_body: dict[str, Any] = field(default_factory=dict)
+    # How much the model may think before it answers. Sent as a normal field,
+    # and dropped once if the provider says no.
+    reasoning_effort: str | None = None
     send_parallel_tool_calls: bool = True
 
     def model(self) -> str:
@@ -70,8 +73,12 @@ PRESETS: dict[str, BrainPreset] = {
         default_model="qwen3.5:4b",
         model_env="AGENTQA_LOCAL_MODEL",
         needs_key=False,
-        # Qwen thinks out loud by default. Thinking off is much faster.
-        extra_body={"think": False},
+        # Qwen thinks out loud by default, and Ollama puts that thinking in
+        # reasoning_content, not in the reply. A thinking answer often has an
+        # empty content field, which is no answer at all. Ollama's OpenAI
+        # endpoint ignores extra_body "think"; reasoning_effort is the switch
+        # it honours there, and "none" turns thinking off.
+        reasoning_effort="none",
         send_parallel_tool_calls=False,
     ),
     BRAIN_GROQ: BrainPreset(

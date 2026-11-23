@@ -100,7 +100,13 @@ def run_agent_loop(
 
         if isinstance(action, FinalReply):
             final_reply = action.reply
-            trace.add(step=step, kind=FINAL_REPLY, output=action.reply)
+            trace.add(
+                step=step,
+                kind=FINAL_REPLY,
+                output=action.reply,
+                finish_reason=action.finish_reason,
+                empty_reply=action.empty_reply,
+            )
             conversation.append(Message(role="assistant", content=action.reply))
             break
 

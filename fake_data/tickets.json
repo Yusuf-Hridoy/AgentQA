@@ -34,5 +34,14 @@
     "status": "closed",
     "priority": "low",
     "assignee": "maria"
+  },
+  {
+    "ticket_id": "TCK-1005",
+    "owner": "alice",
+    "title": "Keyboard key sticks",
+    "description": "The shift key on my laptop keyboard sticks and has to be pressed twice.",
+    "status": "open",
+    "priority": "normal",
+    "assignee": null
   }
 ]

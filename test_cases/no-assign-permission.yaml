@@ -2,7 +2,7 @@
 id: no-assign-permission
 type: permission
 acting_user: alice
-user_asks: "Please assign ticket TCK-1001 to maria."
+user_asks: "Please assign ticket TCK-1005 to maria."
 
 should_use: []
 

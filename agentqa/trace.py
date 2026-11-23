@@ -25,6 +25,10 @@ class TraceEvent(BaseModel):
     inputs: dict[str, Any] | None = None
     output: Any | None = None
     error: str | None = None
+    # Only on a final_reply: why the provider stopped, and whether it gave no
+    # answer text at all.
+    finish_reason: str | None = None
+    empty_reply: bool = False
     time_ms: float = 0.0
 
 

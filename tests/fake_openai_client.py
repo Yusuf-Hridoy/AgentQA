@@ -49,9 +49,14 @@ class FakeAnswer:
     usage: FakeUsage = field(default_factory=FakeUsage)
 
 
-def text_answer(text: str, prompt_tokens: int = 10, completion_tokens: int = 5) -> FakeAnswer:
+def text_answer(
+    text: str | None,
+    prompt_tokens: int = 10,
+    completion_tokens: int = 5,
+    finish_reason: str = "stop",
+) -> FakeAnswer:
     return FakeAnswer(
-        choices=[FakeChoice(message=FakeMessage(content=text))],
+        choices=[FakeChoice(message=FakeMessage(content=text), finish_reason=finish_reason)],
         usage=FakeUsage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
     )
 

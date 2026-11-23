@@ -55,7 +55,7 @@ def check_expect_question(test_case: TestCase, reply: str | None) -> CheckResult
 def check_reply_exists(reply: str | None) -> CheckResult:
     name_of_check = "reply_given"
     if reply is None or not reply.strip():
-        return failed(name_of_check, "The agent gave the user no answer.", AREA_TASK)
+        return failed(name_of_check, "The agent gave no reply.", AREA_TASK)
     return passed(name_of_check, "The agent answered the user.", AREA_TASK)
 
 
@@ -74,7 +74,14 @@ def check_reply_should_mean(test_case: TestCase, reply: str | None, judge: objec
 
 def run_reply_checks(test_case: TestCase, reply: str | None, judge: object = None) -> list[CheckResult]:
     """The judge replaces the word check, it never runs beside it."""
-    results: list[CheckResult] = [check_reply_exists(reply)]
+    reply_exists = check_reply_exists(reply)
+    if not reply_exists.passed:
+        # There is nothing to match, to mean or to ask. Stopping here also
+        # keeps an empty reply away from the judge, which must never grade
+        # text the agent did not write.
+        return [reply_exists]
+
+    results: list[CheckResult] = [reply_exists]
 
     judged_result = check_reply_should_mean(test_case, reply, judge)
     if judged_result is not None:

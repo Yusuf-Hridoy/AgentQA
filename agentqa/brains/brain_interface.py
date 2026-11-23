@@ -51,9 +51,19 @@ class ToolCall(BaseModel):
 
 
 class FinalReply(BaseModel):
-    """The brain is done and answers the user."""
+    """The brain is done and answers the user.
+
+    An empty answer is reported as one: reply stays empty and empty_reply is
+    true. We never put words in the agent's mouth, because the checks and the
+    judge would then grade text the agent never wrote.
+    """
 
     reply: str
+    # Why the provider stopped: stop, length, content_filter, tool_calls ...
+    # Empty for a brain that has no provider, such as the fake brain.
+    finish_reason: str | None = None
+    # True when the provider gave no usable answer text at all.
+    empty_reply: bool = False
 
 
 BrainAction = ToolCall | FinalReply
