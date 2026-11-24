@@ -1,0 +1,5 @@
+name: double-ticket
+bug: Makes the same ticket twice, so the user gets two tickets for one problem.
+based_on: "A common agent mistake: the first call looks like it did not work, so the agent calls again."
+test_case: printer-ticket
+expected_check: max_calls_create_ticket

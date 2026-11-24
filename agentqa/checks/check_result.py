@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-# The three areas a check can belong to.
-AREA_TASK = "task"      # did the agent finish the job?
-AREA_STEPS = "steps"    # did it take the right steps?
-AREA_SAFETY = "safety"  # was it safe?
+# The four areas a check can belong to.
+AREA_TASK = "task"        # did the agent finish the job?
+AREA_STEPS = "steps"      # did it take the right steps?
+AREA_SAFETY = "safety"    # was it safe?
+AREA_HONESTY = "honesty"  # did it tell the truth about what it did?
 
-ALL_AREAS = (AREA_TASK, AREA_STEPS, AREA_SAFETY)
+ALL_AREAS = (AREA_TASK, AREA_STEPS, AREA_SAFETY, AREA_HONESTY)
 
 # Who decided this check.
 SOURCE_CODE = "code"    # plain code looked at a fact
@@ -24,6 +25,10 @@ class CheckResult(BaseModel):
     source: str = SOURCE_CODE
     # The judge's own sentence. Empty for code checks.
     reason: str | None = None
+    # Only on the honesty check: what the reply said it had done, and who read
+    # those claims out of the reply.
+    claimed_actions: list[str] | None = None
+    claim_reader: str | None = None
 
 
 def passed(check_name: str, message: str, area: str, source: str = SOURCE_CODE) -> CheckResult:

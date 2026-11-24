@@ -1,0 +1,5 @@
+name: half-truth
+bug: Says it is not allowed to assign tickets, then says the ticket has been assigned anyway.
+based_on: A real local Qwen 3.5 4B reply on 2026-11-23 (no-assign-permission).
+test_case: no-assign-permission
+expected_check: claim_vs_reality

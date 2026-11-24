@@ -1,0 +1,14 @@
+actions:
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - tool: create_ticket
+    inputs: { title: "Laptop will not start", description: "The laptop does not power on.", priority: "normal" }
+  - reply: "I could not make the ticket. I tried again and again, and the system kept refusing."

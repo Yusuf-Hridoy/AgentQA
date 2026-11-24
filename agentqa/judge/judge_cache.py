@@ -27,9 +27,15 @@ def cache_key(
     user_request: str,
     reply: str,
     expectation: str,
+    label: str = "judge",
 ) -> str:
-    """One short key for one judging question."""
-    parts = [judge_model, prompt_version, user_request, reply or "", expectation]
+    """One short key for one judging question.
+
+    The label says which kind of question this is. The judge and the claim
+    reader ask different things about the same reply, so their answers must
+    never land on the same key.
+    """
+    parts = [label, judge_model, prompt_version, user_request, reply or "", expectation]
     joined = "\n--\n".join(str(part) for part in parts)
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 

@@ -24,12 +24,14 @@ from agentqa.agent_loop import run_agent_loop
 from agentqa.brains.brain_errors import BrainError
 from agentqa.brains.brain_factory import build_brain
 from agentqa.brains.brain_interface import Brain, TokenUsage
-from agentqa.checks.check_result import ALL_AREAS, CheckResult
+from agentqa.checks.check_result import ALL_AREAS, AREA_HONESTY, CheckResult
+from agentqa.checks.claim_checks import run_claim_checks
 from agentqa.checks.loop_checks import run_loop_checks
 from agentqa.checks.reply_checks import run_reply_checks
 from agentqa.checks.safety_checks import run_safety_checks
 from agentqa.checks.ticket_system_checks import run_ticket_system_checks
 from agentqa.checks.tool_call_checks import run_tool_call_checks
+from agentqa.claims.word_claim_reader import WordClaimReader
 from agentqa.fake_ticket_system.ticket_store import TicketStore
 from agentqa.fake_ticket_system.tool_gateway import ToolGateway
 from agentqa.judge.reply_judge import JudgeError
@@ -92,9 +94,27 @@ class TestOutcome:
         return failures[0].message if failures else ""
 
     @property
+    def failed_honesty_checks(self) -> list[CheckResult]:
+        return [check for check in self.failed_checks if check.area == AREA_HONESTY]
+
+    @property
     def is_critical_failure(self) -> bool:
-        """An error is not a critical failure. It is counted on its own."""
-        return self.test_case.critical and self.status == STATUS_FAIL
+        """An error is not a critical failure. It is counted on its own.
+
+        A failed honesty check always counts, even when the test case says
+        critical: false. Misleading the user about what was done is never minor.
+        """
+        if self.status != STATUS_FAIL:
+            return False
+        return self.test_case.critical or bool(self.failed_honesty_checks)
+
+    @property
+    def claim_check(self) -> CheckResult | None:
+        """The honesty check that read the reply, when one ran."""
+        for check in self.checks:
+            if check.claimed_actions is not None:
+                return check
+        return None
 
     def area_passed(self) -> dict[str, bool]:
         """Per area: did every check in that area pass?
@@ -116,6 +136,7 @@ class TestOutcome:
         return result
 
     def to_dict(self) -> dict[str, Any]:
+        claim = self.claim_check
         return {
             "id": self.test_case.id,
             "type": self.test_case.type,
@@ -132,6 +153,8 @@ class TestOutcome:
             "judge_tokens": self.judge_tokens.to_dict(),
             "steps_used": self.steps_used,
             "final_reply": self.final_reply,
+            "claimed_actions": list(claim.claimed_actions) if claim else [],
+            "claim_reader": claim.claim_reader if claim else None,
             "areas": self.area_passed(),
             "checks": [check.model_dump() for check in self.checks],
             "failed_checks": [check.model_dump() for check in self.failed_checks],
@@ -146,6 +169,7 @@ def run_checks(
     store: TicketStore,
     final_reply: str | None,
     judge: Any = None,
+    claim_reader: Any = None,
 ) -> list[CheckResult]:
     """Every check, in a fixed order. Nothing is averaged away."""
     results: list[CheckResult] = []
@@ -154,6 +178,14 @@ def run_checks(
     results.extend(run_safety_checks(test_case, trace, final_reply))
     results.extend(run_ticket_system_checks(test_case, store))
     results.extend(run_reply_checks(test_case, final_reply, judge=judge))
+    results.extend(
+        run_claim_checks(
+            test_case.user_asks,
+            final_reply,
+            trace,
+            claim_reader if claim_reader is not None else WordClaimReader(),
+        )
+    )
     return results
 
 
@@ -164,6 +196,7 @@ def run_one_test(
     scripts_dir: str | Path | None = None,
     data_dir: str | Path | None = None,
     judge: Any = None,
+    claim_reader: Any = None,
 ) -> TestOutcome:
     """Run one test case from a fresh copy of the fake data."""
     started = time.perf_counter()
@@ -177,7 +210,9 @@ def run_one_test(
         tool_failures=test_case.tool_failures,
     )
     thinking = brain if brain is not None else build_brain(brain_name, test_case.id, scripts_dir)
+    reader = claim_reader if claim_reader is not None else WordClaimReader()
     judge_before = _usage_of(judge)
+    reader_before = _usage_of(reader)
 
     final_reply: str | None = None
     steps_used = 0
@@ -188,7 +223,7 @@ def run_one_test(
         run_result = run_agent_loop(brain=thinking, gateway=gateway, test_case=test_case)
         final_reply = run_result.final_reply
         steps_used = run_result.steps_used
-        checks = run_checks(test_case, trace, store, final_reply, judge=judge)
+        checks = run_checks(test_case, trace, store, final_reply, judge=judge, claim_reader=reader)
     except (BrainError, JudgeError) as problem:
         # One test is lost, not the run. The partial trace is kept.
         error_message = str(problem)
@@ -205,7 +240,9 @@ def run_one_test(
         duration_ms=round((time.perf_counter() - started) * 1000, 3),
         error_message=error_message,
         agent_tokens=_usage_of(thinking),
-        judge_tokens=_usage_of(judge).minus(judge_before),
+        # The claim reader asks the same model as the judge, so its tokens are
+        # judge tokens too.
+        judge_tokens=_usage_of(judge).minus(judge_before).plus(_usage_of(reader).minus(reader_before)),
     )
 
 
@@ -216,6 +253,7 @@ def run_all_tests(
     data_dir: str | Path | None = None,
     on_result: Any = None,
     judge: Any = None,
+    claim_reader: Any = None,
 ) -> list[TestOutcome]:
     """Run every test case. on_result is called after each test, for live output."""
     outcomes: list[TestOutcome] = []
@@ -226,6 +264,7 @@ def run_all_tests(
             scripts_dir=scripts_dir,
             data_dir=data_dir,
             judge=judge,
+            claim_reader=claim_reader,
         )
         outcomes.append(outcome)
         if on_result is not None:

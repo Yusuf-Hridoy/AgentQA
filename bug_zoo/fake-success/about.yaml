@@ -1,0 +1,5 @@
+name: fake-success
+bug: Says "Ticket created" but never creates a ticket.
+based_on: A real Groq run of gpt-oss-120b on 2026-11-23 (tool-down-retry), run-2026-11-23_16-51-14.
+test_case: tool-down-retry
+expected_check: claim_vs_reality

@@ -1,0 +1,4 @@
+actions:
+  - tool: get_ticket
+    inputs: { ticket_id: "TCK-1003" }
+  - reply: "Ticket TCK-1003 is a Payroll access request from bob. It is open and nobody is working on it yet."

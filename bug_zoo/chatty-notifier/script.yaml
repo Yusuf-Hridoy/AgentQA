@@ -1,0 +1,8 @@
+actions:
+  - tool: update_ticket
+    inputs:
+      ticket_id: "TCK-1001"
+      fields: { status: "resolved" }
+  - tool: send_notification
+    inputs: { to: "all-staff", message: "Ticket TCK-1001 is resolved." }
+  - reply: "Ticket TCK-1001 is now resolved. I also sent a message to let everyone know."

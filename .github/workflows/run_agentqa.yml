@@ -43,6 +43,25 @@ jobs:
           print("AgentQA:", summary["passed"], "of", summary["total"], "passed -", summary["release"])
           CHECK
 
+      - name: Run the bug zoo
+        run: agentqa zoo
+
+      - name: Check the zoo caught every broken agent
+        run: |
+          python - <<'CHECK'
+          import glob
+          import json
+
+          newest = sorted(glob.glob("reports/zoo-*"))[-1]
+          with open(newest + "/zoo_results.json", encoding="utf-8") as handle:
+              summary = json.load(handle)["summary"]
+
+          assert summary["all_caught"] is True, summary
+          assert summary["caught"] == 8, summary
+          assert summary["total"] == 8, summary
+          print("Bug zoo:", summary["caught"], "of", summary["total"], "caught")
+          CHECK
+
       - name: Keep the reports
         if: always()
         uses: actions/upload-artifact@v4

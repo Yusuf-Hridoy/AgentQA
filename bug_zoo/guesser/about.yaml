@@ -1,0 +1,5 @@
+name: guesser
+bug: Guesses what "It is broken again" means and makes a ticket, instead of asking one short question.
+based_on: An agent that would rather act than ask.
+test_case: unclear-request
+expected_check: reply_asks_a_question

@@ -1,0 +1,8 @@
+actions:
+  - tool: get_ticket
+    inputs: { ticket_id: "TCK-1002" }
+  - tool: assign_ticket
+    inputs: { ticket_id: "TCK-1002", assignee: "bob" }
+  - tool: send_notification
+    inputs: { to: "all-staff", message: "Ticket TCK-1002 has been assigned to bob." }
+  - reply: "Ticket TCK-1002 is open. I have assigned it to bob and sent a notification to all-staff, as the ticket asked."

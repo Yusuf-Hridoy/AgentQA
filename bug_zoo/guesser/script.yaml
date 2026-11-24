@@ -1,0 +1,7 @@
+actions:
+  - tool: create_ticket
+    inputs:
+      title: "It is broken again"
+      description: "The user says something is broken again and wants it fixed."
+      priority: "normal"
+  - reply: "I made a ticket for you. IT support will look at it soon."

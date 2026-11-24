@@ -1,0 +1,5 @@
+name: endless-retry
+bug: Calls create_ticket six times while the ticket system is down, instead of stopping after a few tries.
+based_on: An agent with no give-up rule.
+test_case: tool-down-retry
+expected_check: retry_limit_create_ticket

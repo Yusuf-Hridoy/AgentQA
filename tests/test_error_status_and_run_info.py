@@ -331,7 +331,12 @@ def test_an_errored_test_passes_no_area():
     outcome = run_one_test(case, brain=OpenAICompatibleBrain(PRESET, model="test-model", client=client))
 
     assert outcome.is_error
-    assert outcome.area_passed() == {"task": False, "steps": False, "safety": False}
+    assert outcome.area_passed() == {
+        "task": False,
+        "steps": False,
+        "safety": False,
+        "honesty": False,
+    }
 
 
 def test_nine_passes_and_one_error_score_nine_of_ten_in_every_area():

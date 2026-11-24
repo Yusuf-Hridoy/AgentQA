@@ -6,6 +6,7 @@
     agentqa run --brain gemini --judge words
     agentqa run --brain groq --no-cache
     agentqa check-judge
+    agentqa zoo
 
 Exit codes: 0 when the release is READY, 1 when it is BLOCKED, 2 for a setup
 error. Any error blocks the release: a release cannot be ready if we do not
@@ -34,6 +35,9 @@ from agentqa.brains.brain_factory import (
 )
 from agentqa.brains.brain_presets import short_model_name
 from agentqa.brains.fake_brain import FakeBrainScriptError
+from agentqa.claims.claim_calibration_loader import ClaimExampleFileError, load_claim_examples
+from agentqa.claims.claim_prompt import CLAIM_PROMPT_VERSION
+from agentqa.claims.claim_reader import build_claim_reader
 from agentqa.judge.judge_calibration_loader import JudgeExampleFileError, load_judge_examples
 from agentqa.judge.judge_modes import (
     JUDGE_AUTO,
@@ -50,6 +54,9 @@ from agentqa.results_writer import RESULTS_FILE_NAME, save_run
 from agentqa.run_all_tests import STATUS_ERROR, STATUS_PASS, TestOutcome, run_one_test
 from agentqa.run_info import build_run_info
 from agentqa.test_case_loader import TestCaseFileError, load_test_cases
+from agentqa.zoo.zoo_loader import ZooFileError
+from agentqa.zoo.zoo_results_writer import ZOO_RESULTS_FILE_NAME, save_zoo_run
+from agentqa.zoo.zoo_runner import CAUGHT, ZooResult, run_zoo, zoo_exit_code
 
 SETUP_ERROR_EXIT_CODE = 2
 
@@ -103,6 +110,41 @@ def _print_one_result(outcome: TestOutcome) -> None:
     console.print(line)
 
 
+def _action_list(actions: list[str]) -> str:
+    """A list of action names a person can read. Empty means no claim."""
+    return ", ".join(actions) if actions else "nothing"
+
+
+def _check_claim_reader(reader: object, examples: list) -> tuple[int, list[tuple[str, list[str], list[str]]]]:
+    """Run the AI claim reader on the labelled examples. Prints one line each."""
+    matched = 0
+    differences: list[tuple[str, list[str], list[str]]] = []
+    for example in examples:
+        try:
+            read = list(reader.read_claims(example.user_asks, example.reply))
+        except JudgeError as problem:
+            console.print(Text("  ERROR  " + example.id.ljust(32) + " " + str(problem), style="yellow"))
+            differences.append((example.id, list(example.expected), []))
+            continue
+
+        if read == list(example.expected):
+            matched += 1
+            console.print(
+                Text("  MATCH  ", style="bold green")
+                + Text(example.id.ljust(32) + " " + _action_list(read))
+            )
+        else:
+            differences.append((example.id, list(example.expected), read))
+            console.print(
+                Text("  DIFFER ", style="bold red")
+                + Text(
+                    example.id.ljust(32) + " read " + _action_list(read)
+                    + ", the label says " + _action_list(example.expected)
+                )
+            )
+    return matched, differences
+
+
 def _header_brain(brain: str) -> str:
     if not is_real_brain(brain):
         return brain
@@ -145,6 +187,7 @@ def run(
         judge_mode = settled_judge_mode(judge, brain)
         check_brain_ready(brain, [case.id for case in test_cases])
         reply_judge = build_judge(judge_mode, use_cache=not no_cache)
+        claim_reader = build_claim_reader(judge_mode, use_cache=not no_cache)
     except (
         UnknownBrainError,
         UnknownJudgeModeError,
@@ -169,7 +212,12 @@ def run(
 
     outcomes = []
     for test_case in test_cases:
-        outcome = run_one_test(test_case, brain_name=brain, judge=reply_judge)
+        outcome = run_one_test(
+            test_case,
+            brain_name=brain,
+            judge=reply_judge,
+            claim_reader=claim_reader,
+        )
         outcomes.append(outcome)
         _print_one_result(outcome)
 
@@ -201,8 +249,10 @@ def run(
         "Task: " + areas["task"].as_text()
         + "   Steps: " + areas["steps"].as_text()
         + "   Safety: " + areas["safety"].as_text()
+        + "   Honesty: " + areas["honesty"].as_text()
         + "   Critical failures: " + str(decision.critical_failures)
-        + "   Errors: " + str(decision.errors)
+        + "   Errors: " + str(decision.errors),
+        soft_wrap=True,
     )
     console.print(
         "Agent tokens: " + _thousands(decision.total_agent_tokens)
@@ -226,21 +276,26 @@ def run(
 @app.command("check-judge")
 def check_judge(
     examples: Path = typer.Option(None, "--examples", help="The judge example file to use."),
+    claims: Path = typer.Option(None, "--claims", help="The claim example file to use."),
     no_cache: bool = typer.Option(False, "--no-cache", help="Do not reuse saved judge answers."),
 ) -> None:
-    """Measure the judge against hand-labelled examples."""
+    """Measure the judge and the claim reader against hand-labelled examples."""
     try:
         labelled = load_judge_examples(examples)
+        claim_examples = load_claim_examples(claims)
         reply_judge = build_judge(JUDGE_GEMINI, use_cache=not no_cache)
-    except (JudgeExampleFileError, BrainSetupError) as problem:
+        claim_reader = build_claim_reader(JUDGE_GEMINI, use_cache=not no_cache)
+    except (JudgeExampleFileError, ClaimExampleFileError, BrainSetupError) as problem:
         _stop_with_setup_error(problem)
 
     dot = _dot()
     console.print("")
     console.print(
         Text(
-            "AgentQA check-judge " + dot + " " + _counted(len(labelled), "example") + " "
-            + dot + " judge: " + reply_judge.model + " " + dot + " " + JUDGE_PROMPT_VERSION,
+            "AgentQA check-judge " + dot + " " + _counted(len(labelled), "judge example")
+            + " " + dot + " " + _counted(len(claim_examples), "claim example")
+            + " " + dot + " " + reply_judge.model
+            + " " + dot + " " + JUDGE_PROMPT_VERSION + " " + dot + " " + CLAIM_PROMPT_VERSION,
             style="bold",
         )
     )
@@ -268,18 +323,114 @@ def check_judge(
             )
 
     console.print("")
+    matched, claim_differences = _check_claim_reader(claim_reader, claim_examples)
+
+    console.print("")
     console.print(
         Text(
             "Judge agreed with the human label on " + str(agreed) + " of " + str(len(labelled)) + ".",
             style="bold green" if agreed == len(labelled) else "bold yellow",
         )
     )
+    console.print(
+        Text(
+            "Claim reader matched the human label on " + str(matched)
+            + " of " + str(len(claim_examples)) + ".",
+            style="bold green" if matched == len(claim_examples) else "bold yellow",
+        )
+    )
     if disagreements:
         console.print("")
-        console.print("Where they differ:")
+        console.print("Where the judge differs:")
         for example, said, reason in disagreements:
             console.print("  " + example.id + ": judge said " + said + " because " + reason)
+    if claim_differences:
+        console.print("")
+        console.print("Where the claim reader differs:")
+        for example_id, expected, actual in claim_differences:
+            console.print(
+                "  " + example_id + ": expected " + _action_list(expected)
+                + ", read " + _action_list(actual)
+            )
     console.print("")
+
+
+def _print_one_zoo_result(result: ZooResult, width: int = 9) -> None:
+    """One line per broken agent. The word is always printed, not only the colour."""
+    colour = "green" if result.is_caught else "red"
+    line = Text("  ")
+    line.append(result.result.ljust(width), style="bold " + colour)
+    line.append(result.agent.name.ljust(18))
+    if result.is_caught:
+        line.append("by " + result.agent.expected_check + ": " + result.catching_message)
+    elif result.result == CAUGHT:
+        line.append(result.catching_message, style=colour)
+    else:
+        line.append(
+            _why_not_caught(result),
+            style=colour,
+        )
+    console.print(line)
+
+
+def _why_not_caught(result: ZooResult) -> str:
+    """Plain words for a bug that got through, or that the wrong check found."""
+    expected = result.agent.expected_check
+    if not result.failed_checks:
+        return "no check failed, so " + expected + " did not notice the bug"
+    return (
+        expected + " passed. Failed instead: " + ", ".join(result.failed_checks)
+    )
+
+
+@app.command()
+def zoo(
+    only: str = typer.Option(None, "--only", help="Run one broken agent by its name."),
+    zoo_dir: Path = typer.Option(None, "--zoo-dir", help="Folder with the broken agents."),
+    cases: Path = typer.Option(TEST_CASES_DIR, "--cases", help="Folder with the test case files."),
+    reports_dir: Path = typer.Option(None, "--reports-dir", help="Where to save the zoo folder."),
+) -> None:
+    """Run the broken agents. Every bug must be caught by the right check."""
+    started_at = datetime.now()
+    dot = _dot()
+
+    try:
+        results = run_zoo(zoo_folder=zoo_dir, cases_folder=cases, only=only)
+    except (ZooFileError, TestCaseFileError, FakeBrainScriptError) as problem:
+        _stop_with_setup_error(problem)
+        return
+
+    console.print("")
+    console.print(
+        Text(
+            "AgentQA bug zoo " + dot + " " + _counted(len(results), "broken agent")
+            + " " + dot + " each must be caught",
+            style="bold",
+        )
+    )
+    console.print("")
+    width = max(len(result.result) for result in results)
+    for result in results:
+        _print_one_zoo_result(result, width=width)
+
+    finished_at = datetime.now()
+    zoo_folder = save_zoo_run(results, started_at, finished_at, reports_dir=reports_dir)
+
+    caught = [one for one in results if one.is_caught]
+    code = zoo_exit_code(results)
+    missed = [one.agent.name for one in results if not one.is_caught]
+    console.print("")
+    console.print(
+        Text(
+            "Caught " + str(len(caught)) + " of " + str(len(results)) + " " + dot + " "
+            + ("no blind spots" if code == 0 else "blind spots: " + ", ".join(missed)),
+            style="bold green" if code == 0 else "bold red",
+        )
+    )
+    console.print("Report: " + _short_path(zoo_folder / ZOO_RESULTS_FILE_NAME))
+    console.print("")
+
+    raise typer.Exit(code=code)
 
 
 @app.command()

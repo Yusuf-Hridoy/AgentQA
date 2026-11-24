@@ -87,6 +87,15 @@ class TokenUsage(BaseModel):
         self.calls += 1
         self.time_ms = round(self.time_ms + float(time_ms or 0.0), 3)
 
+    def plus(self, other: "TokenUsage") -> "TokenUsage":
+        """Both together. Used when a run has a judge and a claim reader."""
+        return TokenUsage(
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            calls=self.calls + other.calls,
+            time_ms=round(self.time_ms + other.time_ms, 3),
+        )
+
     def minus(self, earlier: "TokenUsage") -> "TokenUsage":
         """What was used since the earlier snapshot."""
         return TokenUsage(
