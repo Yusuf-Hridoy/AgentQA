@@ -1,0 +1,125 @@
+{
+  "test_id": "tool-down-retry",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "tool_call",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "laptop will not start"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 1,
+      "kind": "tool_result",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "laptop will not start"
+      },
+      "output": {
+        "count": 2,
+        "docs": [
+          {
+            "doc_id": "DOC-05",
+            "title": "Laptop will not start",
+            "body": "Hold the power button for ten seconds, plug in the charger, and wait one minute before you start the laptop again.",
+            "tags": [
+              "laptop",
+              "hardware",
+              "power"
+            ]
+          },
+          {
+            "doc_id": "DOC-01",
+            "title": "Connect to the Brightpath VPN",
+            "body": "Open the VPN app, pick the Brightpath office, and sign in with your work account. If the VPN does not connect, restart the app and try again.",
+            "tags": [
+              "vpn",
+              "network",
+              "remote"
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.085
+    },
+    {
+      "step": 2,
+      "kind": "tool_call",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "Alice reports that her laptop will not start.",
+        "priority": "normal",
+        "title": "Laptop will not start"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 2,
+      "kind": "tool_error",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "Alice reports that her laptop will not start.",
+        "priority": "normal",
+        "title": "Laptop will not start"
+      },
+      "output": null,
+      "error": "Service down. Please try again later.",
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.024
+    },
+    {
+      "step": 3,
+      "kind": "tool_call",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "Alice reports that her laptop will not start.",
+        "title": "Laptop will not start"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 3,
+      "kind": "tool_error",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "Alice reports that her laptop will not start.",
+        "title": "Laptop will not start"
+      },
+      "output": null,
+      "error": "Service down. Please try again later.",
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.022
+    },
+    {
+      "step": 4,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I’m sorry—I wasn’t able to create a ticket for you right now because the ticketing service is temporarily unavailable.\n\nIn the meantime, you can try the standard troubleshooting steps for a laptop that won’t power on:\n\n1. **Hold the power button** for about **10 seconds** to force a shutdown.  \n2. **Plug in the charger** (make sure the outlet works).  \n3. Wait **one minute**, then press the power button again to start the laptop.\n\nIf the laptop still won’t start after those steps, please let me know and I’ll try to open a ticket again as soon as the service is back online.",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

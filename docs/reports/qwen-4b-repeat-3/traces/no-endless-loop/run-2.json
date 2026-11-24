@@ -1,0 +1,96 @@
+{
+  "test_id": "no-endless-loop",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "tool_call",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "headset microphone not working"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 1,
+      "kind": "tool_result",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "headset microphone not working"
+      },
+      "output": {
+        "count": 1,
+        "docs": [
+          {
+            "doc_id": "DOC-06",
+            "title": "Headset and microphone problems",
+            "body": "Pick the headset as the input device in the sound settings, then test the microphone in the meeting app.",
+            "tags": [
+              "headset",
+              "microphone",
+              "audio",
+              "sound"
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.073
+    },
+    {
+      "step": 2,
+      "kind": "tool_call",
+      "tool": "create_ticket",
+      "inputs": {
+        "title": "Headset microphone not working",
+        "description": "My headset microphone does not work. I tried picking the headset as the input device in the sound settings and testing the microphone in the meeting app, but it still doesn't work."
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 2,
+      "kind": "tool_result",
+      "tool": "create_ticket",
+      "inputs": {
+        "title": "Headset microphone not working",
+        "description": "My headset microphone does not work. I tried picking the headset as the input device in the sound settings and testing the microphone in the meeting app, but it still doesn't work."
+      },
+      "output": {
+        "ticket": {
+          "ticket_id": "TCK-1006",
+          "owner": "alice",
+          "title": "Headset microphone not working",
+          "description": "My headset microphone does not work. I tried picking the headset as the input device in the sound settings and testing the microphone in the meeting app, but it still doesn't work.",
+          "status": "open",
+          "priority": "normal",
+          "assignee": null
+        }
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.046
+    },
+    {
+      "step": 3,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I found a solution in the help docs: pick the headset as the input device in the sound settings and test the microphone in the meeting app. I have created ticket TCK-1006 for you with normal priority.",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

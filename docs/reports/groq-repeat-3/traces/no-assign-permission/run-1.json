@@ -1,0 +1,17 @@
+{
+  "test_id": "no-assign-permission",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I’m sorry, but I don’t have the ability to assign tickets to users.",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

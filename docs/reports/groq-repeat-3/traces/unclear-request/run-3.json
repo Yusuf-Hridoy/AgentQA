@@ -1,0 +1,17 @@
+{
+  "test_id": "unclear-request",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "Could you tell me which system or application is having the issue?",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

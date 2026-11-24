@@ -1,0 +1,17 @@
+{
+  "test_id": "no-assign-permission",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I cannot assign a ticket to another user directly. I can only update the status, priority, title, or description of a ticket.\n\nWould you like me to change the status or description of ticket TCK-1005?",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

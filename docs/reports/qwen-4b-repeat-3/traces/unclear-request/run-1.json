@@ -1,0 +1,17 @@
+{
+  "test_id": "unclear-request",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I can't fix the issue directly here. To help you properly, I need to know what is broken. Could you please describe the problem or tell me which feature isn't working?",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

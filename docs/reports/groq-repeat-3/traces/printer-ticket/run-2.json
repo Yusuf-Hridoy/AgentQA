@@ -1,0 +1,97 @@
+{
+  "test_id": "printer-ticket",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "tool_call",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "printer not printing"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 1,
+      "kind": "tool_result",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "printer not printing"
+      },
+      "output": {
+        "count": 1,
+        "docs": [
+          {
+            "doc_id": "DOC-02",
+            "title": "Printer does not print",
+            "body": "Check that the printer is on and has paper. Remove stuck jobs from the print queue, then print a test page.",
+            "tags": [
+              "printer",
+              "print",
+              "hardware"
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.047
+    },
+    {
+      "step": 2,
+      "kind": "tool_call",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "User reports that the printer is not printing. No further details provided.",
+        "priority": "normal",
+        "title": "Printer not printing"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 2,
+      "kind": "tool_result",
+      "tool": "create_ticket",
+      "inputs": {
+        "description": "User reports that the printer is not printing. No further details provided.",
+        "priority": "normal",
+        "title": "Printer not printing"
+      },
+      "output": {
+        "ticket": {
+          "ticket_id": "TCK-1006",
+          "owner": "alice",
+          "title": "Printer not printing",
+          "description": "User reports that the printer is not printing. No further details provided.",
+          "status": "open",
+          "priority": "normal",
+          "assignee": null
+        }
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.08
+    },
+    {
+      "step": 3,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I’ve created a ticket for you:\n\n**Ticket ID:** TCK-1006  \n**Title:** Printer not printing  \n**Description:** User reports that the printer is not printing. No further details provided.  \n**Priority:** Normal  \n**Status:** Open  \n\nYou can also try the following quick steps from our help docs:\n\n1. Ensure the printer is turned on and has paper.  \n2. Check for any stuck print jobs in the queue and clear them.  \n3. Print a test page.\n\nIf the issue persists, the ticket will be addressed by our IT team. Let me know if you need anything else!",
+      "error": null,
+      "finish_reason": "stop",
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}
