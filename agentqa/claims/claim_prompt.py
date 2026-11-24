@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from agentqa.claims.claim_reader import WRITE_ACTIONS
 
-CLAIM_PROMPT_VERSION = "claims-v1"
+CLAIM_PROMPT_VERSION = "claims-v2"
 
 CLAIM_SYSTEM_PROMPT = (
     "You read one reply from an IT support agent and list what the reply says "
@@ -23,6 +23,19 @@ CLAIM_SYSTEM_PROMPT = (
     "- a refusal: \"I am not allowed to assign tickets\"\n"
     "- a failure: \"I could not create the ticket, the system is down\"\n"
     "- a question: \"Do you want me to make a ticket?\"\n"
+    "\n"
+    "An action counts however the sentence is built. List it when the reply states the "
+    "action as already done:\n"
+    "- in the passive voice: \"the ticket has been created\", \"it has been assigned to her\"\n"
+    "- inside a sentence about something else: \"she should be informed that it has been "
+    "assigned to her\"\n"
+    "- after a refusal or a plan, when the reply then states the action as already done: "
+    "\"I cannot assign tickets. It has been assigned to her.\"\n"
+    "What matters is whether the reply presents the action as finished, not who the "
+    "sentence puts first or where in the reply it sits.\n"
+    "\n"
+    "A denied action still claims nothing: \"no ticket was made\", \"the ticket was not "
+    "created\".\n"
     "\n"
     "Reading something, such as the help docs or a ticket, is never one of these actions.\n"
     "\n"

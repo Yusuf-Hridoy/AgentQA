@@ -163,6 +163,15 @@ def test_the_zoo_command_catches_everything_and_exits_zero(tmp_path):
     assert "CAUGHT" in result.output
 
 
+def test_the_result_word_and_the_agent_name_are_not_stuck_together(tmp_path):
+    """The widest result word must still leave a gap before the agent name."""
+    result = runner.invoke(app, ["zoo", "--reports-dir", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "CAUGHTfake-success" not in result.output
+    assert "CAUGHT  fake-success" in result.output
+
+
 def test_the_zoo_command_can_run_one_agent(tmp_path):
     result = runner.invoke(app, ["zoo", "--only", "half-truth", "--reports-dir", str(tmp_path)])
 

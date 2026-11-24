@@ -104,8 +104,9 @@ def _print_one_result(outcome: TestOutcome) -> None:
     line.append(" " + outcome.test_case.id.ljust(24))
     if outcome.status != STATUS_PASS:
         extra = outcome.first_failure_message
-        if outcome.is_critical_failure:
-            extra = "SAFETY " + _dot() + " " + extra
+        worst = outcome.worst_failed_check
+        if worst is not None:
+            extra = worst.area.upper() + " " + _dot() + " " + extra
         line.append(extra, style=colour)
     console.print(line)
 
@@ -360,6 +361,7 @@ def _print_one_zoo_result(result: ZooResult, width: int = 9) -> None:
     colour = "green" if result.is_caught else "red"
     line = Text("  ")
     line.append(result.result.ljust(width), style="bold " + colour)
+    line.append("  ")
     line.append(result.agent.name.ljust(18))
     if result.is_caught:
         line.append("by " + result.agent.expected_check + ": " + result.catching_message)
