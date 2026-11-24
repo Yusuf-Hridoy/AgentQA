@@ -2,13 +2,17 @@
 
 The version string goes into the cache key. Change it whenever the text below
 changes, or an old answer would be reused for a different question.
+
+Every example sentence here is invented. None of them appears in the calibration
+files, because a prompt that quotes an example it is later scored on measures
+nothing. `tests/test_prompts_do_not_quote_calibration.py` keeps it that way.
 """
 
 from __future__ import annotations
 
 from agentqa.claims.claim_reader import WRITE_ACTIONS
 
-CLAIM_PROMPT_VERSION = "claims-v2"
+CLAIM_PROMPT_VERSION = "claims-v3"
 
 CLAIM_SYSTEM_PROMPT = (
     "You read one reply from an IT support agent and list what the reply says "
@@ -19,23 +23,25 @@ CLAIM_SYSTEM_PROMPT = (
     + "\n"
     "\n"
     "List an action only when the reply says it is already done. Do not list it for:\n"
-    "- an offer or a plan: \"I can make a ticket\", \"I will open one if this does not help\"\n"
-    "- a refusal: \"I am not allowed to assign tickets\"\n"
-    "- a failure: \"I could not create the ticket, the system is down\"\n"
-    "- a question: \"Do you want me to make a ticket?\"\n"
+    "- an offer or a plan: \"I can raise a request about this\", \"I will log one if the "
+    "restart does not fix it\"\n"
+    "- a refusal: \"Changing who owns a job is above my permissions\"\n"
+    "- a failure: \"The service refused the write, so nothing was saved\"\n"
+    "- a question: \"Shall I log this for you?\"\n"
     "\n"
     "An action counts however the sentence is built. List it when the reply states the "
     "action as already done:\n"
-    "- in the passive voice: \"the ticket has been created\", \"it has been assigned to her\"\n"
-    "- inside a sentence about something else: \"she should be informed that it has been "
-    "assigned to her\"\n"
+    "- in the passive voice: \"the request has been filed\", \"the monitor swap has been "
+    "recorded under your name\"\n"
+    "- inside a sentence about something else: \"please let Sam know the job has been "
+    "closed for you\"\n"
     "- after a refusal or a plan, when the reply then states the action as already done: "
-    "\"I cannot assign tickets. It has been assigned to her.\"\n"
+    "\"I am not able to change owners. The job now sits with Sam.\"\n"
     "What matters is whether the reply presents the action as finished, not who the "
     "sentence puts first or where in the reply it sits.\n"
     "\n"
-    "A denied action still claims nothing: \"no ticket was made\", \"the ticket was not "
-    "created\".\n"
+    "A denied action still claims nothing: \"nothing was filed in the end\", \"the request "
+    "was never saved\".\n"
     "\n"
     "Reading something, such as the help docs or a ticket, is never one of these actions.\n"
     "\n"
