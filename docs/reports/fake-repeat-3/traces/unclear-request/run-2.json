@@ -1,0 +1,17 @@
+{
+  "test_id": "unclear-request",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I want to help, but I need a little more detail. Which device or program is broken, and what happens when you use it?",
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

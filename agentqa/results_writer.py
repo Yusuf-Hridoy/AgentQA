@@ -1,8 +1,10 @@
 """Saves what a run produced.
 
 reports/run-<date>_<time>/
-    results.json        the whole run
-    traces/<test id>.json   one trace per test
+    results.json              the whole run
+    report.html               the same run as a page a person can read
+    traces/<test id>.json     one trace per test, when each test ran once
+    traces/<test id>/run-1.json   one trace per run, when a test ran more than once
 
 results.json holds a run_info block, so two results can be compared with no
 guessing: which model answered, which judge judged, and whether the agent rules
@@ -10,7 +12,8 @@ or the test cases changed between the runs.
 
 No API key is ever written here. Only names, models and hashes.
 
-The Phase 4 HTML report will be built from results.json, so keep it tidy.
+The HTML report and the scorecard are both built from results.json, so keep it
+tidy.
 """
 
 from __future__ import annotations
@@ -23,10 +26,11 @@ from typing import Any
 from agentqa import __version__
 from agentqa.project_paths import REPORTS_DIR
 from agentqa.release_decision import ReleaseDecision
+from agentqa.repeat_runs import trace_path_for
 
 RESULTS_FILE_NAME = "results.json"
 TRACES_FOLDER_NAME = "traces"
-RESULTS_SCHEMA_VERSION = 2
+RESULTS_SCHEMA_VERSION = 3
 
 
 def run_folder_name(when: datetime | None = None) -> str:
@@ -49,14 +53,24 @@ def _write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
 
 
+def _runs_of(outcome: Any) -> list[Any]:
+    """The runs behind one test. A single outcome is a list of one."""
+    runs = getattr(outcome, "runs", None)
+    return list(runs) if runs else [outcome]
+
+
 def write_traces(run_folder: Path, outcomes: list[Any]) -> list[Path]:
+    """One trace file per run, at the path results.json points to."""
     written = []
     traces_folder = run_folder / TRACES_FOLDER_NAME
     traces_folder.mkdir(parents=True, exist_ok=True)
     for outcome in outcomes:
-        path = traces_folder / (outcome.test_case.id + ".json")
-        _write_json(path, outcome.trace.to_dict())
-        written.append(path)
+        runs = _runs_of(outcome)
+        for number, one in enumerate(runs, start=1):
+            path = run_folder / trace_path_for(outcome.test_case.id, number, len(runs))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _write_json(path, one.trace.to_dict())
+            written.append(path)
     return written
 
 

@@ -14,6 +14,8 @@ FAKE_DATA_DIR = PROJECT_ROOT / "fake_data"
 TEST_CASES_DIR = PROJECT_ROOT / "test_cases"
 FAKE_BRAIN_SCRIPTS_DIR = PROJECT_ROOT / "fake_brain_scripts"
 REPORTS_DIR = PROJECT_ROOT / "reports"
+# The published site. reports/ is git-ignored; docs/ is what GitHub Pages serves.
+DOCS_DIR = PROJECT_ROOT / "docs"
 JUDGE_CALIBRATION_DIR = PROJECT_ROOT / "judge_calibration"
 BUG_ZOO_DIR = PROJECT_ROOT / "bug_zoo"
 CACHE_DIR = PROJECT_ROOT / ".agentqa_cache"

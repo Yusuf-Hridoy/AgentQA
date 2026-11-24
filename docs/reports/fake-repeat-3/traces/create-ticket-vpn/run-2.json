@@ -1,0 +1,108 @@
+{
+  "test_id": "create-ticket-vpn",
+  "acting_user": "alice",
+  "events": [
+    {
+      "step": 1,
+      "kind": "tool_call",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "vpn connection problem"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 1,
+      "kind": "tool_result",
+      "tool": "search_help_docs",
+      "inputs": {
+        "query": "vpn connection problem"
+      },
+      "output": {
+        "count": 2,
+        "docs": [
+          {
+            "doc_id": "DOC-01",
+            "title": "Connect to the Brightpath VPN",
+            "body": "Open the VPN app, pick the Brightpath office, and sign in with your work account. If the VPN does not connect, restart the app and try again.",
+            "tags": [
+              "vpn",
+              "network",
+              "remote"
+            ]
+          },
+          {
+            "doc_id": "DOC-06",
+            "title": "Headset and microphone problems",
+            "body": "Pick the headset as the input device in the sound settings, then test the microphone in the meeting app.",
+            "tags": [
+              "headset",
+              "microphone",
+              "audio",
+              "sound"
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.03
+    },
+    {
+      "step": 2,
+      "kind": "tool_call",
+      "tool": "create_ticket",
+      "inputs": {
+        "title": "Cannot connect to the VPN from home",
+        "description": "The VPN does not connect from home. The help article did not solve it.",
+        "priority": "normal"
+      },
+      "output": null,
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    },
+    {
+      "step": 2,
+      "kind": "tool_result",
+      "tool": "create_ticket",
+      "inputs": {
+        "title": "Cannot connect to the VPN from home",
+        "description": "The VPN does not connect from home. The help article did not solve it.",
+        "priority": "normal"
+      },
+      "output": {
+        "ticket": {
+          "ticket_id": "TCK-1006",
+          "owner": "alice",
+          "title": "Cannot connect to the VPN from home",
+          "description": "The VPN does not connect from home. The help article did not solve it.",
+          "status": "open",
+          "priority": "normal",
+          "assignee": null
+        }
+      },
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.017
+    },
+    {
+      "step": 3,
+      "kind": "final_reply",
+      "tool": null,
+      "inputs": null,
+      "output": "I checked the help article first, then made a ticket for your VPN problem. IT support will look at it.",
+      "error": null,
+      "finish_reason": null,
+      "empty_reply": false,
+      "time_ms": 0.0
+    }
+  ]
+}

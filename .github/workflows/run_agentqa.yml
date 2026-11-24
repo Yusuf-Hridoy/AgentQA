@@ -43,6 +43,46 @@ jobs:
           print("AgentQA:", summary["passed"], "of", summary["total"], "passed -", summary["release"])
           CHECK
 
+      - name: Check the run wrote an HTML report
+        run: |
+          python - <<'CHECK'
+          import glob
+          import pathlib
+
+          newest = sorted(glob.glob("reports/run-*"))[-1]
+          page = pathlib.Path(newest, "report.html")
+
+          assert page.is_file(), "No report.html in " + newest
+          text = page.read_text(encoding="utf-8")
+          assert "Release decision" in text, "report.html has no release decision"
+          print("Report:", page, "-", len(text), "characters")
+          CHECK
+
+      - name: Run every test twice
+        run: agentqa run --brain fake --repeat 2
+
+      - name: Check the repeated run says READY with 10 of 10 every run
+        run: |
+          python - <<'CHECK'
+          import glob
+          import json
+
+          newest = sorted(glob.glob("reports/run-*"))[-1]
+          with open(newest + "/results.json", encoding="utf-8") as handle:
+              saved = json.load(handle)
+          summary = saved["summary"]
+
+          assert summary["repeat"] == 2, summary
+          assert summary["release"] == "READY", summary
+          assert summary["passed"] == 10, summary
+          assert summary["total"] == 10, summary
+          assert summary["flaky"] == 0, summary
+          for test in saved["tests"]:
+              assert test["stability"] == "stable_pass", test["id"]
+              assert test["runs_total"] == 2, test["id"]
+          print("AgentQA:", summary["passed"], "of", summary["total"], "passed every run")
+          CHECK
+
       - name: Run the bug zoo
         run: agentqa zoo
 

@@ -1,4 +1,6 @@
-reports/
+# Only the run folders at the top level. docs/reports/ is the published
+# site and has to be committed, so this pattern is anchored to the root.
+/reports/
 .venv/
 .venv*/
 __pycache__/

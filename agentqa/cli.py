@@ -5,6 +5,10 @@
     agentqa run --brain groq --only printer-ticket
     agentqa run --brain gemini --judge words
     agentqa run --brain groq --no-cache
+    agentqa run --brain groq --repeat 3
+    agentqa report reports/run-2026-11-24_12-08-47
+    agentqa compare reports/run-A reports/run-B
+    agentqa publish reports/run-A --name groq-repeat-3
     agentqa check-judge
     agentqa zoo
 
@@ -49,8 +53,27 @@ from agentqa.judge.judge_modes import (
 from agentqa.judge.judge_prompt import JUDGE_PROMPT_VERSION
 from agentqa.judge.reply_judge import JudgeError
 from agentqa.project_paths import PROJECT_ROOT, TEST_CASES_DIR
+from agentqa.publish.publish_run import PublishError, publish_folder
 from agentqa.release_decision import decide_release
-from agentqa.results_writer import RESULTS_FILE_NAME, save_run
+from agentqa.repeat_runs import (
+    MAX_REPEAT,
+    MIN_REPEAT,
+    STABLE_PASS,
+    STABILITY_COLOUR,
+    STABILITY_WORD,
+    RepeatCountError,
+    RepeatedTest,
+    settled_repeat,
+)
+from agentqa.report.report_builder import ReportFolderError, write_report
+from agentqa.results_writer import save_run
+from agentqa.scorecard.scorecard_fairness import UnfairComparisonError
+from agentqa.scorecard.scorecard_markdown import scorecard_markdown
+from agentqa.scorecard.scorecard_writer import (
+    SCORECARD_HTML_FILE_NAME,
+    SCORECARD_MARKDOWN_FILE_NAME,
+    save_scorecard,
+)
 from agentqa.run_all_tests import STATUS_ERROR, STATUS_PASS, TestOutcome, run_one_test
 from agentqa.run_info import build_run_info
 from agentqa.test_case_loader import TestCaseFileError, load_test_cases
@@ -77,6 +100,11 @@ def _dot() -> str:
     if encoding in ("utf8", "utf_8"):
         return "·"
     return "-"
+
+
+def _times() -> str:
+    """'×' when the terminal speaks UTF-8, else a plain x."""
+    return "×" if _dot() == "·" else "x"
 
 
 def _short_path(path: Path) -> str:
@@ -108,6 +136,32 @@ def _print_one_result(outcome: TestOutcome) -> None:
         if worst is not None:
             extra = worst.area.upper() + " " + _dot() + " " + extra
         line.append(extra, style=colour)
+    console.print(line)
+
+
+def _print_one_repeat_result(repeated: RepeatedTest) -> None:
+    """One line per test when a test ran more than once.
+
+    PASS, FLAKY, FAIL or ERROR, then how many runs passed, then the worst thing
+    that went wrong in the first run that did not pass.
+    """
+    stability = repeated.stability
+    word = STABILITY_WORD[stability]
+    colour = STABILITY_COLOUR[stability]
+
+    line = Text("  ")
+    line.append(word.ljust(6), style="bold " + colour)
+    line.append("  " + repeated.test_case.id.ljust(24))
+    line.append(repeated.runs_text.ljust(6))
+    if stability != STABLE_PASS:
+        said = repeated.main_message
+        area = repeated.main_area
+        number = repeated.first_failed_run_number
+        if area:
+            said = area.upper() + " " + _dot() + " run " + str(number) + ": " + said
+        elif number:
+            said = "run " + str(number) + ": " + said
+        line.append(said, style=colour)
     console.print(line)
 
 
@@ -174,13 +228,20 @@ def run(
     cases: Path = typer.Option(TEST_CASES_DIR, "--cases", help="Folder with the test case files."),
     reports_dir: Path = typer.Option(None, "--reports-dir", help="Where to save the run folder."),
     no_cache: bool = typer.Option(False, "--no-cache", help="Do not reuse saved judge answers."),
+    repeat: int = typer.Option(
+        1,
+        "--repeat",
+        help="Run every test this many times, from " + str(MIN_REPEAT) + " to " + str(MAX_REPEAT)
+        + ". One run cannot show whether an agent is reliable.",
+    ),
 ) -> None:
     """Run the AgentQA test cases against an agent."""
     started_at = datetime.now()
 
     try:
+        times = settled_repeat(repeat)
         test_cases = load_test_cases(cases, only=only)
-    except TestCaseFileError as problem:
+    except (RepeatCountError, TestCaseFileError) as problem:
         _stop_with_setup_error(problem)
 
     # Everything that can fail before the first test, fails before the first test.
@@ -203,7 +264,8 @@ def run(
     console.print("")
     console.print(
         Text(
-            "AgentQA " + dot + " " + _counted(len(test_cases), "test") + " "
+            "AgentQA " + dot + " " + _counted(len(test_cases), "test")
+            + ((" " + _times() + " " + str(times) + " runs") if times > 1 else "") + " "
             + dot + " brain: " + _header_brain(brain)
             + " " + dot + " judge: " + (judge_model or "words"),
             style="bold",
@@ -213,16 +275,24 @@ def run(
 
     outcomes = []
     for test_case in test_cases:
-        outcome = run_one_test(
-            test_case,
-            brain_name=brain,
-            judge=reply_judge,
-            claim_reader=claim_reader,
-        )
-        outcomes.append(outcome)
-        _print_one_result(outcome)
+        # Every run gets a fresh brain and fresh fake data, as one run does.
+        runs = [
+            run_one_test(
+                test_case,
+                brain_name=brain,
+                judge=reply_judge,
+                claim_reader=claim_reader,
+            )
+            for _ in range(times)
+        ]
+        repeated = RepeatedTest(test_case=test_case, runs=runs)
+        outcomes.append(repeated)
+        if times > 1:
+            _print_one_repeat_result(repeated)
+        else:
+            _print_one_result(runs[0])
 
-    decision = decide_release(outcomes)
+    decision = decide_release(outcomes, repeat=times)
     finished_at = datetime.now()
 
     run_folder = save_run(
@@ -241,8 +311,11 @@ def run(
             judge_model=judge_model,
             judge_prompt_version=JUDGE_PROMPT_VERSION if reply_judge is not None else None,
             cases_folder=cases,
+            claim_prompt_version=CLAIM_PROMPT_VERSION if claim_reader is not None else None,
+            repeat=times,
         ),
     )
+    report_file = write_report(run_folder)
 
     areas = decision.areas
     console.print("")
@@ -252,6 +325,7 @@ def run(
         + "   Safety: " + areas["safety"].as_text()
         + "   Honesty: " + areas["honesty"].as_text()
         + "   Critical failures: " + str(decision.critical_failures)
+        + ("   Flaky: " + str(decision.flaky) if times > 1 else "")
         + "   Errors: " + str(decision.errors),
         soft_wrap=True,
     )
@@ -263,15 +337,71 @@ def run(
     result_style = "bold green" if decision.is_ready else "bold red"
     console.print(
         Text(
-            "Result: " + str(decision.passed_tests) + " of " + str(decision.total_tests)
-            + " passed " + dot + " Release: " + decision.status,
+            "Result: " + decision.passed_text() + " " + dot + " Release: " + decision.status,
             style=result_style,
         )
     )
-    console.print("Report: " + _short_path(run_folder / RESULTS_FILE_NAME))
+    console.print("Report: " + _short_path(report_file))
     console.print("")
 
     raise typer.Exit(code=decision.exit_code())
+
+
+@app.command()
+def report(
+    run_folder: Path = typer.Argument(..., help="A run folder that agentqa run made."),
+) -> None:
+    """Build report.html again from a saved run folder."""
+    try:
+        path = write_report(run_folder)
+    except ReportFolderError as problem:
+        _stop_with_setup_error(problem)
+        return
+
+    console.print("")
+    console.print("Report: " + _short_path(path))
+    console.print("")
+
+
+@app.command()
+def compare(
+    run_folders: list[Path] = typer.Argument(..., help="Two or more run folders to compare."),
+    reports_dir: Path = typer.Option(None, "--reports-dir", help="Where to save the scorecard folder."),
+) -> None:
+    """Put several runs in one table, but only when they can be compared fairly."""
+    try:
+        folder, rows, facts = save_scorecard(list(run_folders), reports_dir=reports_dir)
+    except (ReportFolderError, UnfairComparisonError) as problem:
+        _stop_with_setup_error(problem)
+        return
+
+    console.print("")
+    # Plain text, not markup: a table must not be re-wrapped or re-read as style.
+    console.print(Text(scorecard_markdown(rows, facts)), soft_wrap=True)
+    console.print("Scorecard: " + _short_path(folder / SCORECARD_HTML_FILE_NAME))
+    console.print("Markdown:  " + _short_path(folder / SCORECARD_MARKDOWN_FILE_NAME))
+    console.print("")
+
+
+@app.command()
+def publish(
+    source_folder: Path = typer.Argument(..., help="A run folder or a scorecard folder."),
+    name: str = typer.Option(None, "--name", help="What to call it in docs/reports/."),
+    docs_dir: Path = typer.Option(None, "--docs-dir", help="Where the site lives. Normally docs/."),
+) -> None:
+    """Copy a run into docs/, so anyone can open it on the web."""
+    try:
+        target, copied, index = publish_folder(source_folder, name=name, docs_dir=docs_dir)
+    except PublishError as problem:
+        _stop_with_setup_error(problem)
+        return
+
+    console.print("")
+    console.print(
+        "Published " + _counted(len(copied), "file") + " to " + _short_path(target)
+    )
+    console.print("Landing page: " + _short_path(index))
+    console.print("")
 
 
 @app.command("check-judge")

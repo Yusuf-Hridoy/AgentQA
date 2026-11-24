@@ -2,6 +2,10 @@
 
 One failed test is enough to block a release. So is one error: a release cannot
 be ready if we do not know what the agent did. Nothing is averaged.
+
+With repeat runs the bar does not move, it only gets harder to clear: a test
+passed only when every run of it passed, and a flaky test blocks the release
+just as a failing one does. An agent that lies one time in three still lies.
 """
 
 from __future__ import annotations
@@ -37,6 +41,8 @@ class ReleaseDecision:
     failed_test_ids: list[str] = field(default_factory=list)
     critical_failure_ids: list[str] = field(default_factory=list)
     error_test_ids: list[str] = field(default_factory=list)
+    flaky_test_ids: list[str] = field(default_factory=list)
+    repeat: int = 1
     areas: dict[str, AreaCount] = field(default_factory=dict)
     total_agent_tokens: int = 0
     total_judge_tokens: int = 0
@@ -49,11 +55,17 @@ class ReleaseDecision:
     def exit_code(self) -> int:
         return 0 if self.is_ready else 1
 
+    @property
+    def flaky(self) -> int:
+        return len(self.flaky_test_ids)
+
+    def passed_text(self) -> str:
+        """'8 of 10 passed', or 'passed every run' when the tests were repeated."""
+        counted = str(self.passed_tests) + " of " + str(self.total_tests) + " passed"
+        return counted + (" every run" if self.repeat > 1 else "")
+
     def summary_line(self) -> str:
-        return (
-            "Result: " + str(self.passed_tests) + " of " + str(self.total_tests)
-            + " passed - Release: " + self.status
-        )
+        return "Result: " + self.passed_text() + " - Release: " + self.status
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -61,11 +73,14 @@ class ReleaseDecision:
             "passed": self.passed_tests,
             "failed": len(self.failed_test_ids),
             "errors": self.errors,
+            "flaky": self.flaky,
             "total": self.total_tests,
+            "repeat": self.repeat,
             "critical_failures": self.critical_failures,
             "failed_test_ids": list(self.failed_test_ids),
             "critical_failure_ids": list(self.critical_failure_ids),
             "error_test_ids": list(self.error_test_ids),
+            "flaky_test_ids": list(self.flaky_test_ids),
             "areas": {name: count.to_dict() for name, count in self.areas.items()},
             "total_agent_tokens": self.total_agent_tokens,
             "total_judge_tokens": self.total_judge_tokens,
@@ -78,15 +93,20 @@ def _tokens(outcome: Any, field_name: str) -> int:
     return int(getattr(usage, "total_tokens", 0) or 0)
 
 
-def decide_release(outcomes: list[Any]) -> ReleaseDecision:
-    """Any failed test blocks the release. So does any error."""
+def decide_release(outcomes: list[Any], repeat: int = 1) -> ReleaseDecision:
+    """Any failed test blocks the release. So does any error, and any flake."""
     total = len(outcomes)
     passed = [outcome for outcome in outcomes if outcome.passed]
     errors = [outcome for outcome in outcomes if getattr(outcome, "is_error", False)]
+    flaky = [outcome for outcome in outcomes if getattr(outcome, "is_flaky", False)]
+    # A flaky test is counted on its own, so it is not also counted as failed.
+    # It still blocks the release: see the status below.
     failed = [
         outcome
         for outcome in outcomes
-        if not outcome.passed and not getattr(outcome, "is_error", False)
+        if not outcome.passed
+        and not getattr(outcome, "is_error", False)
+        and not getattr(outcome, "is_flaky", False)
     ]
     critical = [outcome for outcome in outcomes if outcome.is_critical_failure]
 
@@ -97,7 +117,7 @@ def decide_release(outcomes: list[Any]) -> ReleaseDecision:
                 areas[name].passed += 1
 
     return ReleaseDecision(
-        status=READY if not (failed or errors) else BLOCKED,
+        status=READY if not (failed or errors or flaky) else BLOCKED,
         passed_tests=len(passed),
         total_tests=total,
         critical_failures=len(critical),
@@ -105,6 +125,8 @@ def decide_release(outcomes: list[Any]) -> ReleaseDecision:
         failed_test_ids=[outcome.test_case.id for outcome in failed],
         critical_failure_ids=[outcome.test_case.id for outcome in critical],
         error_test_ids=[outcome.test_case.id for outcome in errors],
+        flaky_test_ids=[outcome.test_case.id for outcome in flaky],
+        repeat=repeat,
         areas=areas,
         total_agent_tokens=sum(_tokens(outcome, "agent_tokens") for outcome in outcomes),
         total_judge_tokens=sum(_tokens(outcome, "judge_tokens") for outcome in outcomes),

@@ -2,6 +2,8 @@
 
 Two results are only comparable when these match. The hashes make that easy to
 see: change one word of AGENT_RULES or one test case file, and the hash changes.
+`agentqa compare` refuses runs whose hashes or prompt versions differ, so this
+block is what makes a scorecard fair.
 """
 
 from __future__ import annotations
@@ -51,6 +53,8 @@ def build_run_info(
     judge_model: str | None,
     judge_prompt_version: str | None,
     cases_folder: str | Path | None = None,
+    claim_prompt_version: str | None = None,
+    repeat: int = 1,
 ) -> dict[str, Any]:
     return {
         "brain": brain_name,
@@ -59,6 +63,8 @@ def build_run_info(
         "judge_mode": judge_mode,
         "judge_model": judge_model,
         "judge_prompt_version": judge_prompt_version,
+        "claim_prompt_version": claim_prompt_version,
+        "repeat": int(repeat),
         "agent_rules_hash": agent_rules_hash(),
         "test_cases_hash": test_cases_hash(cases_folder),
         "agentqa_version": __version__,
