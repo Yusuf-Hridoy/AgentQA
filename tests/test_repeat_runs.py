@@ -259,7 +259,7 @@ def test_one_run_writes_the_traces_where_they_have_always_been(tmp_path):
     assert printer["status"] == "pass"
     assert printer["stability"] == STABLE_PASS
     assert printer["runs_total"] == 1
-    assert saved["schema_version"] == 3
+    assert saved["schema_version"] == 4
     assert saved["summary"]["repeat"] == 1
     assert saved["run_info"]["repeat"] == 1
 

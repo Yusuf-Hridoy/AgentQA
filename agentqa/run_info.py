@@ -14,6 +14,7 @@ from typing import Any
 
 from agentqa import __version__
 from agentqa.agent_loop import AGENT_RULES
+from agentqa.agents.agent_interface import AGENT_BUILTIN, NO_FRAMEWORK
 from agentqa.project_paths import TEST_CASES_DIR
 
 HASH_LENGTH = 8
@@ -55,9 +56,18 @@ def build_run_info(
     cases_folder: str | Path | None = None,
     claim_prompt_version: str | None = None,
     repeat: int = 1,
+    agent: str = AGENT_BUILTIN,
+    agent_framework: str | None = None,
+    guard_prompt_version: str | None = None,
 ) -> dict[str, Any]:
     return {
         "brain": brain_name,
+        # Which agent was tested, and what built it. The agent may differ
+        # between two runs on one scorecard: it is one of the things being
+        # compared. The rules and the test cases may not.
+        "agent": agent,
+        "agent_framework": agent_framework or NO_FRAMEWORK,
+        "guard_prompt_version": guard_prompt_version,
         "provider": provider,
         "model": model,
         "judge_mode": judge_mode,

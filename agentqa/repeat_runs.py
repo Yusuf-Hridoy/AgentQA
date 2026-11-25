@@ -164,6 +164,20 @@ class RepeatedTest:
         return _added_tokens(self.runs, "judge_tokens")
 
     @property
+    def guard_tokens(self) -> TokenUsage:
+        return _added_tokens(self.runs, "guard_tokens")
+
+    @property
+    def guard_stopped(self) -> list[Any]:
+        """Every action the guard stopped, in every run of this test."""
+        return [block for one in self.runs for block in getattr(one, "guard_stopped", [])]
+
+    @property
+    def guard_wrongly_blocked(self) -> list[Any]:
+        """Every action the guard blocked that this test did want."""
+        return [block for one in self.runs for block in getattr(one, "guard_wrongly_blocked", [])]
+
+    @property
     def duration_ms(self) -> float:
         return round(sum(float(getattr(one, "duration_ms", 0.0)) for one in self.runs), 3)
 
@@ -224,6 +238,11 @@ class RepeatedTest:
                 "areas": self.area_passed(),
                 "agent_tokens": self.agent_tokens.to_dict(),
                 "judge_tokens": self.judge_tokens.to_dict(),
+                "guard_tokens": self.guard_tokens.to_dict(),
+                "guard_stopped": [block.to_dict() for block in self.guard_stopped],
+                "guard_wrongly_blocked": [
+                    block.to_dict() for block in self.guard_wrongly_blocked
+                ],
                 "duration_ms": self.duration_ms,
                 "runs": [
                     _one_run_dict(one, number, self.test_case.id, self.runs_total)

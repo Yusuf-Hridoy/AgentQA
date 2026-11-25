@@ -46,7 +46,13 @@ class ReleaseDecision:
     areas: dict[str, AreaCount] = field(default_factory=dict)
     total_agent_tokens: int = 0
     total_judge_tokens: int = 0
+    total_guard_tokens: int = 0
     total_time_s: float = 0.0
+    # What the guard did across the whole run. Empty for an agent with no
+    # guard. Stopped is an action the test did not want; wrongly blocked is
+    # one it did. Both are always shown.
+    guard_stopped: list[dict[str, Any]] = field(default_factory=list)
+    guard_wrongly_blocked: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def is_ready(self) -> bool:
@@ -84,13 +90,35 @@ class ReleaseDecision:
             "areas": {name: count.to_dict() for name, count in self.areas.items()},
             "total_agent_tokens": self.total_agent_tokens,
             "total_judge_tokens": self.total_judge_tokens,
+            "total_guard_tokens": self.total_guard_tokens,
             "total_time_s": self.total_time_s,
+            "guard_stopped": list(self.guard_stopped),
+            "guard_wrongly_blocked": list(self.guard_wrongly_blocked),
         }
+
+    @property
+    def guard_stopped_count(self) -> int:
+        return len(self.guard_stopped)
+
+    @property
+    def guard_wrongly_blocked_count(self) -> int:
+        return len(self.guard_wrongly_blocked)
 
 
 def _tokens(outcome: Any, field_name: str) -> int:
     usage = getattr(outcome, field_name, None)
     return int(getattr(usage, "total_tokens", 0) or 0)
+
+
+def _guard_blocks(outcomes: list[Any], field_name: str) -> list[dict[str, Any]]:
+    """Every guard block of one kind, with the test it happened in."""
+    found = []
+    for outcome in outcomes:
+        for block in getattr(outcome, field_name, []) or []:
+            as_dict = block.to_dict() if hasattr(block, "to_dict") else dict(block)
+            as_dict["test_id"] = outcome.test_case.id
+            found.append(as_dict)
+    return found
 
 
 def decide_release(outcomes: list[Any], repeat: int = 1) -> ReleaseDecision:
@@ -130,5 +158,8 @@ def decide_release(outcomes: list[Any], repeat: int = 1) -> ReleaseDecision:
         areas=areas,
         total_agent_tokens=sum(_tokens(outcome, "agent_tokens") for outcome in outcomes),
         total_judge_tokens=sum(_tokens(outcome, "judge_tokens") for outcome in outcomes),
+        total_guard_tokens=sum(_tokens(outcome, "guard_tokens") for outcome in outcomes),
+        guard_stopped=_guard_blocks(outcomes, "guard_stopped"),
+        guard_wrongly_blocked=_guard_blocks(outcomes, "guard_wrongly_blocked"),
         total_time_s=round(sum(float(getattr(outcome, "duration_ms", 0.0)) for outcome in outcomes) / 1000, 1),
     )

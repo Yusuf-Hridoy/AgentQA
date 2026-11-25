@@ -20,9 +20,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from agentqa.agent_loop import run_agent_loop
+from agentqa.agent_loop import role_of
+from agentqa.agents.agent_interface import (
+    AGENT_BUILTIN,
+    AgentUnderTest,
+    GuardBlock,
+    agent_usage,
+    guard_usage,
+)
+from agentqa.agents.agent_factory import build_agent
 from agentqa.brains.brain_errors import BrainError
-from agentqa.brains.brain_factory import build_brain
 from agentqa.brains.brain_interface import Brain, TokenUsage
 from agentqa.checks.check_result import (
     ALL_AREAS,
@@ -71,6 +78,9 @@ class TestOutcome:
     error_message: str | None = None
     agent_tokens: TokenUsage = field(default_factory=TokenUsage)
     judge_tokens: TokenUsage = field(default_factory=TokenUsage)
+    # Only the guard agent fills these. Every other agent leaves them empty.
+    guard_tokens: TokenUsage = field(default_factory=TokenUsage)
+    guard_blocks: list[GuardBlock] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -127,6 +137,23 @@ class TestOutcome:
         return self.test_case.critical or bool(self.failed_honesty_checks)
 
     @property
+    def guard_stopped(self) -> list[GuardBlock]:
+        """Blocks on a tool this test did not want. The guard stopped something.
+
+        A blocked action never reached the gateway, so the system did not do
+        it, and the test can still pass. The guard is part of the agent under
+        test. What it stopped is always shown, never hidden.
+        """
+        wanted = set(self.test_case.should_use)
+        return [block for block in self.guard_blocks if block.tool not in wanted]
+
+    @property
+    def guard_wrongly_blocked(self) -> list[GuardBlock]:
+        """Blocks on a tool this test did want. The guard got in the way."""
+        wanted = set(self.test_case.should_use)
+        return [block for block in self.guard_blocks if block.tool in wanted]
+
+    @property
     def claim_check(self) -> CheckResult | None:
         """The honesty check that read the reply, when one ran."""
         for check in self.checks:
@@ -171,6 +198,9 @@ class TestOutcome:
             "duration_ms": self.duration_ms,
             "agent_tokens": self.agent_tokens.to_dict(),
             "judge_tokens": self.judge_tokens.to_dict(),
+            "guard_tokens": self.guard_tokens.to_dict(),
+            "guard_stopped": [block.to_dict() for block in self.guard_stopped],
+            "guard_wrongly_blocked": [block.to_dict() for block in self.guard_wrongly_blocked],
             "steps_used": self.steps_used,
             "final_reply": self.final_reply,
             "claimed_actions": list(claim.claimed_actions) if claim else [],
@@ -217,8 +247,16 @@ def run_one_test(
     data_dir: str | Path | None = None,
     judge: Any = None,
     claim_reader: Any = None,
+    agent_name: str = AGENT_BUILTIN,
+    agent: AgentUnderTest | None = None,
 ) -> TestOutcome:
-    """Run one test case from a fresh copy of the fake data."""
+    """Run one test case from a fresh copy of the fake data.
+
+    The agent is whatever `--agent` asked for. Everything after the run is the
+    same for every agent: the same checks, the same claim reader, the same
+    judge. That is what lets one scorecard hold a builtin run and a LangGraph
+    run next to each other.
+    """
     started = time.perf_counter()
 
     store = TicketStore.load_fresh(data_dir)
@@ -229,7 +267,13 @@ def run_one_test(
         trace=trace,
         tool_failures=test_case.tool_failures,
     )
-    thinking = brain if brain is not None else build_brain(brain_name, test_case.id, scripts_dir)
+    acting = agent if agent is not None else build_agent(
+        agent_name=agent_name,
+        brain_name=brain_name,
+        test_id=test_case.id,
+        brain=brain,
+        scripts_dir=scripts_dir,
+    )
     reader = claim_reader if claim_reader is not None else WordClaimReader()
     judge_before = _usage_of(judge)
     reader_before = _usage_of(reader)
@@ -238,11 +282,18 @@ def run_one_test(
     steps_used = 0
     error_message: str | None = None
     checks: list[CheckResult] = []
+    guard_blocks: list[GuardBlock] = []
 
     try:
-        run_result = run_agent_loop(brain=thinking, gateway=gateway, test_case=test_case)
+        run_result = acting.run(
+            test_case=test_case,
+            gateway=gateway,
+            role=role_of(store, test_case.acting_user),
+            max_steps=test_case.max_steps,
+        )
         final_reply = run_result.final_reply
         steps_used = run_result.steps_used
+        guard_blocks = list(run_result.guard_blocks)
         checks = run_checks(test_case, trace, store, final_reply, judge=judge, claim_reader=reader)
     except (BrainError, JudgeError) as problem:
         # One test is lost, not the run. The partial trace is kept.
@@ -259,10 +310,12 @@ def run_one_test(
         ticket_system=store.snapshot(),
         duration_ms=round((time.perf_counter() - started) * 1000, 3),
         error_message=error_message,
-        agent_tokens=_usage_of(thinking),
+        agent_tokens=agent_usage(acting),
         # The claim reader asks the same model as the judge, so its tokens are
         # judge tokens too.
         judge_tokens=_usage_of(judge).minus(judge_before).plus(_usage_of(reader).minus(reader_before)),
+        guard_tokens=guard_usage(acting),
+        guard_blocks=guard_blocks,
     )
 
 
@@ -274,6 +327,7 @@ def run_all_tests(
     on_result: Any = None,
     judge: Any = None,
     claim_reader: Any = None,
+    agent_name: str = AGENT_BUILTIN,
 ) -> list[TestOutcome]:
     """Run every test case. on_result is called after each test, for live output."""
     outcomes: list[TestOutcome] = []
@@ -285,6 +339,7 @@ def run_all_tests(
             data_dir=data_dir,
             judge=judge,
             claim_reader=claim_reader,
+            agent_name=agent_name,
         )
         outcomes.append(outcome)
         if on_result is not None:

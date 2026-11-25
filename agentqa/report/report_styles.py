@@ -207,6 +207,17 @@ details.test .body { padding: 0 16px 16px; }
 .steps li:last-child { border-bottom: none; }
 .steps .kind { display: inline-block; min-width: 92px; color: var(--ink-soft); }
 .steps li.blocked .kind, .steps li.tool_error .kind { color: var(--fail); }
+.steps li.guard_blocked .kind { color: var(--flaky); }
+.guardtag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-right: 6px;
+  font-family: var(--heading);
+  font-size: 0.72rem;
+}
+.guardtag.stopped { background: var(--pass-soft); color: var(--pass); border: 1px solid var(--pass); }
+.guardtag.wrong { background: var(--flaky-soft); color: var(--flaky); border: 1px solid var(--flaky); }
 
 .reply, .claimbox, .judge {
   margin-top: 10px;

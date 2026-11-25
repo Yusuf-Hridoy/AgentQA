@@ -23,7 +23,17 @@ MUST_MATCH = (
 
 # The repeat count may differ. More runs of one model is more evidence about
 # that model, not a different question being asked.
-MAY_DIFFER = ("repeat",)
+#
+# The agent and the model may differ too, and that is the point of Phase 5: a
+# scorecard that could not hold a builtin run next to a LangGraph run would
+# answer nothing. What may never differ is the rules the agents were held to.
+MAY_DIFFER = ("repeat", "agent", "agent_framework", "brain", "model")
+
+# The guard is part of the agent under test, so two agents with different
+# guards are two different agents, which is allowed. Two guard runs with
+# different guard prompts are not: the guard would have been told different
+# things, and the numbers would be about the prompt, not about the agent.
+GUARD_PROMPT_FIELD = "guard_prompt_version"
 
 
 class UnfairComparisonError(Exception):
@@ -55,6 +65,30 @@ def check_fair(runs: list[tuple[str, dict[str, Any]]]) -> None:
                 "compared fairly. " + _said(wanted) + " is from " + first_name
                 + " and " + _said(found) + " is from " + name + "."
             )
+
+    check_guard_prompts_match(runs)
+
+
+def check_guard_prompts_match(runs: list[tuple[str, dict[str, Any]]]) -> None:
+    """Two runs that both had a guard must have had the same guard prompt."""
+    guarded = [
+        (name, value_of(results, GUARD_PROMPT_FIELD))
+        for name, results in runs
+        if value_of(results, GUARD_PROMPT_FIELD)
+    ]
+    if len(guarded) < 2:
+        return
+
+    first_name, wanted = guarded[0]
+    for name, found in guarded[1:]:
+        if found == wanted:
+            continue
+        raise UnfairComparisonError(
+            "These runs used different guard prompts (" + _said(wanted) + " vs "
+            + _said(found) + "), so they can't be compared fairly. "
+            + _said(wanted) + " is from " + first_name + " and " + _said(found)
+            + " is from " + name + "."
+        )
 
 
 def _said(value: Any) -> str:

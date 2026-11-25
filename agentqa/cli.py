@@ -2,6 +2,8 @@
 
     agentqa run --brain fake
     agentqa run --brain local
+    agentqa run --agent langgraph-react --brain groq --repeat 3
+    agentqa run --agent langgraph-guard --brain local --repeat 3
     agentqa run --brain groq --only printer-ticket
     agentqa run --brain gemini --judge words
     agentqa run --brain groq --no-cache
@@ -29,6 +31,17 @@ from rich.console import Console
 from rich.text import Text
 
 from agentqa import __version__
+from agentqa.agents.agent_factory import (
+    agent_framework_label,
+    check_agent_ready,
+    guard_prompt_version_for,
+)
+from agentqa.agents.agent_interface import (
+    AGENT_BUILTIN,
+    AGENT_LANGGRAPH_GUARD,
+    ALL_AGENT_NAMES,
+    AgentSetupError,
+)
 from agentqa.brains.brain_errors import BrainSetupError
 from agentqa.brains.brain_factory import (
     BRAIN_FAKE,
@@ -105,6 +118,18 @@ def _dot() -> str:
 def _times() -> str:
     """'×' when the terminal speaks UTF-8, else a plain x."""
     return "×" if _dot() == "·" else "x"
+
+
+def _terminal_safe(text: str) -> str:
+    """Text a terminal that does not speak UTF-8 can still print.
+
+    The scorecard is printed as plain text, and a console on the old Windows
+    code page turns a middle dot into a replacement character. The saved files
+    are UTF-8 and keep the real character.
+    """
+    if _dot() == "·":
+        return text
+    return text.replace("·", "-").replace("×", "x").replace("…", "...")
 
 
 def _short_path(path: Path) -> str:
@@ -206,6 +231,24 @@ def _header_brain(brain: str) -> str:
     return short_model_name(brain_model_name(brain)) + " (" + brain + ")"
 
 
+def _guard_line(decision: object, dot: str, has_guard: bool) -> str:
+    """One line about the guard, for an agent that has one.
+
+    It is printed whenever the run had a guard, even when the guard stopped
+    nothing, so a reader never has to wonder whether it was switched on.
+    """
+    if not has_guard:
+        return ""
+    stopped = len(getattr(decision, "guard_stopped", []) or [])
+    wrong = len(getattr(decision, "guard_wrongly_blocked", []) or [])
+    tokens = int(getattr(decision, "total_guard_tokens", 0) or 0)
+    return (
+        "Guard: stopped " + _counted(stopped, "write")
+        + " " + dot + " wrongly blocked " + str(wrong)
+        + " " + dot + " " + _thousands(tokens) + " tokens"
+    )
+
+
 def _stop_with_setup_error(problem: Exception) -> None:
     console.print(Text(str(problem), style="red"))
     raise typer.Exit(code=SETUP_ERROR_EXIT_CODE)
@@ -219,6 +262,11 @@ def main() -> None:
 @app.command()
 def run(
     brain: str = typer.Option(BRAIN_FAKE, "--brain", help="Which brain to test: fake, local, groq or gemini."),
+    agent: str = typer.Option(
+        AGENT_BUILTIN,
+        "--agent",
+        help="Which agent to test: " + ", ".join(ALL_AGENT_NAMES) + ".",
+    ),
     judge: str = typer.Option(
         JUDGE_AUTO,
         "--judge",
@@ -247,12 +295,14 @@ def run(
     # Everything that can fail before the first test, fails before the first test.
     try:
         judge_mode = settled_judge_mode(judge, brain)
+        check_agent_ready(agent, brain)
         check_brain_ready(brain, [case.id for case in test_cases])
         reply_judge = build_judge(judge_mode, use_cache=not no_cache)
         claim_reader = build_claim_reader(judge_mode, use_cache=not no_cache)
     except (
         UnknownBrainError,
         UnknownJudgeModeError,
+        AgentSetupError,
         BrainSetupError,
         FakeBrainScriptError,
     ) as problem:
@@ -266,7 +316,8 @@ def run(
         Text(
             "AgentQA " + dot + " " + _counted(len(test_cases), "test")
             + ((" " + _times() + " " + str(times) + " runs") if times > 1 else "") + " "
-            + dot + " brain: " + _header_brain(brain)
+            + dot + " agent: " + agent
+            + " " + dot + " brain: " + _header_brain(brain)
             + " " + dot + " judge: " + (judge_model or "words"),
             style="bold",
         )
@@ -280,6 +331,7 @@ def run(
             run_one_test(
                 test_case,
                 brain_name=brain,
+                agent_name=agent,
                 judge=reply_judge,
                 claim_reader=claim_reader,
             )
@@ -313,6 +365,9 @@ def run(
             cases_folder=cases,
             claim_prompt_version=CLAIM_PROMPT_VERSION if claim_reader is not None else None,
             repeat=times,
+            agent=agent,
+            agent_framework=agent_framework_label(agent),
+            guard_prompt_version=guard_prompt_version_for(agent),
         ),
     )
     report_file = write_report(run_folder)
@@ -334,6 +389,9 @@ def run(
         + " " + dot + " Judge tokens: " + _thousands(decision.total_judge_tokens)
         + " " + dot + " Time: " + str(round(decision.total_time_s)) + " s"
     )
+    guard_line = _guard_line(decision, dot, agent == AGENT_LANGGRAPH_GUARD)
+    if guard_line:
+        console.print(guard_line)
     result_style = "bold green" if decision.is_ready else "bold red"
     console.print(
         Text(
@@ -377,7 +435,7 @@ def compare(
 
     console.print("")
     # Plain text, not markup: a table must not be re-wrapped or re-read as style.
-    console.print(Text(scorecard_markdown(rows, facts)), soft_wrap=True)
+    console.print(Text(_terminal_safe(scorecard_markdown(rows, facts))), soft_wrap=True)
     console.print("Scorecard: " + _short_path(folder / SCORECARD_HTML_FILE_NAME))
     console.print("Markdown:  " + _short_path(folder / SCORECARD_MARKDOWN_FILE_NAME))
     console.print("")

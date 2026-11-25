@@ -12,11 +12,13 @@ from agentqa.scorecard.scorecard_rows import ScorecardRow
 
 HEADINGS = (
     "Model",
+    "Agent",
     "Passed every run",
     "Task",
     "Steps",
     "Safety",
     "Honesty",
+    "Guard",
     "Flaky",
     "Runs each",
     "Time",
@@ -27,11 +29,13 @@ HEADINGS = (
 def row_cells(row: ScorecardRow) -> list[str]:
     return [
         row.model_and_where,
+        row.agent,
         row.passed_text,
         row.task,
         row.steps,
         row.safety,
         row.honesty,
+        row.guard,
         str(row.flaky),
         str(row.repeat),
         str(round(row.time_s)) + " s",
@@ -61,7 +65,10 @@ def fairness_line(facts: dict[str, Any]) -> str:
 
 def scorecard_markdown(rows: list[ScorecardRow], facts: dict[str, Any]) -> str:
     """The whole scorecard as Markdown."""
-    said = "\n".join("- **" + row.model_and_where + "** " + row.sentence for row in rows)
+    said = "\n".join(
+        "- **" + row.model_and_where + "**, agent " + row.agent + ". " + row.sentence
+        for row in rows
+    )
     return (
         "## Model scorecard\n\n"
         + fairness_line(facts) + "\n\n"

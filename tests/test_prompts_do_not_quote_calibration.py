@@ -4,7 +4,12 @@
 hand-labelled replies in judge_calibration/. If one of those replies is written
 into a prompt, the model is told the answer and the score stops meaning
 anything. This test fails when any run of words from a calibration reply turns
-up inside the judge prompt or the claim prompt.
+up inside the judge prompt, the claim prompt or the guard prompt.
+
+The guard prompt has a second rule of its own. The guard decides whether the
+user asked for an action, and the ten test cases are what the user asks. A
+guard prompt that quoted one of those requests would be a guard that had been
+shown the answer sheet, so the test cases are checked against it too.
 """
 
 from __future__ import annotations
@@ -13,10 +18,12 @@ import re
 
 import pytest
 
+from agentqa.agents.langgraph.guard_prompt import GUARD_SYSTEM_PROMPT
 from agentqa.claims.claim_calibration_loader import load_claim_examples
 from agentqa.claims.claim_prompt import CLAIM_SYSTEM_PROMPT
 from agentqa.judge.judge_calibration_loader import load_judge_examples
 from agentqa.judge.judge_prompt import JUDGE_SYSTEM_PROMPT
+from agentqa.test_case_loader import load_test_cases
 
 # Four words in a row. Shorter runs catch ordinary English ("the ticket was"),
 # longer runs let a whole quoted clause through.
@@ -46,7 +53,11 @@ def calibration_replies() -> list[tuple[str, str]]:
     return pairs
 
 
-PROMPTS = [("judge prompt", JUDGE_SYSTEM_PROMPT), ("claim prompt", CLAIM_SYSTEM_PROMPT)]
+PROMPTS = [
+    ("judge prompt", JUDGE_SYSTEM_PROMPT),
+    ("claim prompt", CLAIM_SYSTEM_PROMPT),
+    ("guard prompt", GUARD_SYSTEM_PROMPT),
+]
 
 
 @pytest.mark.parametrize("prompt_name,prompt", PROMPTS)
@@ -60,6 +71,24 @@ def test_no_calibration_reply_is_quoted_in_a_prompt(prompt_name, prompt):
     assert not leaks, (
         "The " + prompt_name + " quotes calibration replies, so check-judge would be "
         "measuring words the model was handed:\n  " + "\n  ".join(leaks)
+    )
+
+
+def test_no_test_case_request_is_quoted_in_the_guard_prompt():
+    """The guard is asked whether the user wanted an action.
+
+    If the prompt held one of the ten requests, the guard would be reading its
+    own answer rather than deciding, and the guard runs would measure nothing.
+    """
+    leaks = []
+    for case in load_test_cases(None):
+        shared = quoted_in(GUARD_SYSTEM_PROMPT, case.user_asks)
+        if shared:
+            leaks.append(case.id + ": " + ", ".join('"' + run + '"' for run in shared))
+
+    assert not leaks, (
+        "The guard prompt quotes what a test case asks for, so a guard run "
+        "would be scoring words it was handed:\n  " + "\n  ".join(leaks)
     )
 
 

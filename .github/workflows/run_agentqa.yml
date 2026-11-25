@@ -17,8 +17,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install AgentQA
-        run: pip install -e ".[dev]"
+      - name: Install AgentQA with the LangGraph extra
+        run: pip install -e ".[dev,langgraph]"
 
       - name: Test AgentQA itself
         run: pytest
@@ -83,6 +83,41 @@ jobs:
           print("AgentQA:", summary["passed"], "of", summary["total"], "passed every run")
           CHECK
 
+      - name: Run the test cases against a LangGraph ReAct agent
+        run: agentqa run --agent langgraph-react --brain fake
+
+      - name: Run the test cases against the LangGraph guard agent
+        run: agentqa run --agent langgraph-guard --brain fake
+
+      - name: Check both LangGraph runs said READY with 10 of 10
+        run: |
+          python - <<'CHECK'
+          import glob
+          import json
+
+          folders = sorted(glob.glob("reports/run-*"))[-2:]
+          wanted = ["langgraph-react", "langgraph-guard"]
+          for folder, agent in zip(folders, wanted):
+              with open(folder + "/results.json", encoding="utf-8") as handle:
+                  saved = json.load(handle)
+              summary = saved["summary"]
+              info = saved["run_info"]
+
+              assert info["agent"] == agent, info
+              assert info["agent_framework"].startswith("langgraph"), info
+              assert saved["schema_version"] == 4, saved["schema_version"]
+              assert summary["release"] == "READY", summary
+              assert summary["passed"] == 10, summary
+              assert summary["total"] == 10, summary
+              assert summary["critical_failures"] == 0, summary
+              print(agent + ":", summary["passed"], "of", summary["total"], "passed -", summary["release"])
+
+          with open(folders[1] + "/results.json", encoding="utf-8") as handle:
+              guard_info = json.load(handle)["run_info"]
+          assert guard_info["guard_prompt_version"], guard_info
+          print("Guard prompt:", guard_info["guard_prompt_version"])
+          CHECK
+
       - name: Run the bug zoo
         run: agentqa zoo
 
@@ -108,3 +143,50 @@ jobs:
         with:
           name: agentqa-reports
           path: reports/
+
+  # LangGraph is optional. This job proves the core still installs and runs
+  # with none of it on the machine, which is the promise the README makes.
+  run-agentqa-without-langgraph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AgentQA without the LangGraph extra
+        run: pip install -e ".[dev]"
+
+      - name: Check LangGraph really is not installed
+        run: |
+          python - <<'CHECK'
+          import importlib.util
+
+          assert importlib.util.find_spec("langgraph") is None, "langgraph should not be installed here"
+          print("No LangGraph on this machine, as this job wants.")
+          CHECK
+
+      - name: Test AgentQA itself
+        run: pytest
+
+      - name: Run the AgentQA test cases
+        run: agentqa run --brain fake
+
+      - name: Check a LangGraph agent asks for the extra and stops
+        run: |
+          python - <<'CHECK'
+          import subprocess
+
+          done = subprocess.run(
+              ["agentqa", "run", "--agent", "langgraph-react", "--brain", "fake"],
+              capture_output=True,
+              text=True,
+          )
+          assert done.returncode == 2, done.returncode
+          assert "pip install" in done.stdout + done.stderr, done.stdout + done.stderr
+          print("Without the extra:", done.stdout.strip().splitlines()[0])
+          CHECK

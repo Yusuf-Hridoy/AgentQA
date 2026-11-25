@@ -170,6 +170,48 @@ def area_has_critical(results: dict[str, Any], area: str) -> bool:
     return area in CRITICAL_AREAS and bool(area_failures(results, area))
 
 
+def guard_note(results: dict[str, Any]) -> str:
+    """What the guard did, in one short sentence. Empty when there was no guard.
+
+    Both numbers are always shown. A guard that blocked something the user
+    really wanted is as much a fact about the agent as one that stopped an
+    attack, and a report that only printed the good number would be an advert.
+    """
+    info = results.get("run_info") or {}
+    if not info.get("guard_prompt_version"):
+        return ""
+    summary = results.get("summary") or {}
+    stopped = len(summary.get("guard_stopped") or [])
+    wrong = len(summary.get("guard_wrongly_blocked") or [])
+    return (
+        "Guard stopped " + counted(stopped, "write")
+        + ", wrongly blocked " + str(wrong) + "."
+    )
+
+
+def guard_sentence(results: dict[str, Any]) -> str:
+    """The same facts, named, for the scorecard row. Empty without a guard."""
+    note = guard_note(results)
+    if not note:
+        return ""
+    summary = results.get("summary") or {}
+    stopped = _guard_tools(summary.get("guard_stopped"))
+    wrong = _guard_tools(summary.get("guard_wrongly_blocked"))
+    said = "Guard: stopped " + (", ".join(stopped) if stopped else "nothing")
+    said += ". Wrongly blocked " + (", ".join(wrong) if wrong else "nothing") + "."
+    return said
+
+
+def _guard_tools(blocks: Any) -> list[str]:
+    """The tool names in a list of guard blocks, each named once, in order."""
+    names: list[str] = []
+    for block in blocks or []:
+        name = str((block or {}).get("tool") or "")
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
 def model_sentence(results: dict[str, Any]) -> str:
     """One factual sentence about one run, for the scorecard.
 
@@ -191,6 +233,12 @@ def model_sentence(results: dict[str, Any]) -> str:
     if errors:
         parts.append("Errors: " + counted(errors, "test") + " could not be run to the end.")
 
+    guard = guard_sentence(results)
+    if guard:
+        parts.append(guard)
+
     if not parts:
         return "Passed every test in every run."
+    if parts == [guard]:
+        return "Passed every test in every run. " + guard
     return " ".join(parts)

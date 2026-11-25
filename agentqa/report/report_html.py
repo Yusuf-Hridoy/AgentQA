@@ -28,6 +28,7 @@ from agentqa.report.report_sentences import (
     area_has_critical,
     card_note,
     counted,
+    guard_note,
     release_sentences,
     runs_of,
     runs_total,
@@ -52,7 +53,12 @@ EVENT_WORD = {
     "tool_error": "error",
     "final_reply": "reply",
     "step_limit_hit": "out of steps",
+    "guard_blocked": "guard",
 }
+
+# What the two kinds of guard block are called on the page.
+GUARD_STOPPED_LABEL = "Guard stopped"
+GUARD_WRONGLY_BLOCKED_LABEL = "Guard wrongly blocked"
 
 
 def safe(value: Any) -> str:
@@ -151,8 +157,14 @@ def _header(results: dict[str, Any]) -> str:
     brain = info.get("brain") or run.get("brain") or ""
     brain_pill = str(model) + ((" (" + str(brain) + ")") if brain and brain != model else "")
 
+    agent_pill = str(info.get("agent") or "")
+    framework = str(info.get("agent_framework") or "")
+    if agent_pill and framework and framework != "none":
+        agent_pill += " (" + framework + ")"
+
     pills = [
         str(run.get("started_at") or "")[:19].replace("T", " "),
+        agent_pill,
         brain_pill,
         tests_pill,
         str(round(float(summary.get("total_time_s") or 0))) + " s",
@@ -201,11 +213,14 @@ def _cards(results: dict[str, Any]) -> str:
         tag = (
             "<span class=\"tag\">Critical</span>" if area_has_critical(results, area) else ""
         )
+        note = card_note(results, area)
+        if area == AREA_SAFETY:
+            note = (note + " " + guard_note(results)).strip()
         cards.append(
             "      <div class=\"card " + ("good" if good else "bad") + "\">\n"
             "        <h3>" + safe(AREA_TITLE[area]) + tag + "</h3>\n"
             "        <div class=\"score\">" + safe(str(passed) + "/" + str(total)) + "</div>\n"
-            "        <div class=\"note\">" + safe(card_note(results, area)) + "</div>\n"
+            "        <div class=\"note\">" + safe(note) + "</div>\n"
             "      </div>"
         )
 
@@ -260,8 +275,21 @@ def _all_tests_table(results: dict[str, Any]) -> str:
     )
 
 
-def _steps_list(trace: dict[str, Any]) -> str:
+def _wrongly_blocked_tools(run: dict[str, Any]) -> set[str]:
+    """The tools this run's guard blocked although the test wanted them."""
+    return {str(block.get("tool") or "") for block in (run.get("guard_wrongly_blocked") or [])}
+
+
+def _guard_tag(tool: str, wrongly_blocked: set[str]) -> str:
+    """Green when the guard stopped something, orange when it got in the way."""
+    if tool in wrongly_blocked:
+        return "<span class=\"guardtag wrong\">" + safe(GUARD_WRONGLY_BLOCKED_LABEL) + "</span> "
+    return "<span class=\"guardtag stopped\">" + safe(GUARD_STOPPED_LABEL) + "</span> "
+
+
+def _steps_list(trace: dict[str, Any], run: dict[str, Any] | None = None) -> str:
     events = (trace or {}).get("events") or []
+    wrongly_blocked = _wrongly_blocked_tools(run or {})
     items = []
     for event in events:
         kind = str(event.get("kind") or "")
@@ -269,10 +297,13 @@ def _steps_list(trace: dict[str, Any]) -> str:
             continue
         word = EVENT_WORD.get(kind, kind)
         detail = event.get("error") or _short_json(event.get("output") or event.get("inputs"))
+        tool = str(event.get("tool") or "")
+        tag = _guard_tag(tool, wrongly_blocked) if kind == "guard_blocked" else ""
         items.append(
             "            <li class=\"" + safe(kind) + "\">"
             "<span class=\"kind\">" + safe(word) + "</span> "
-            "<strong>" + safe(event.get("tool") or "") + "</strong> "
+            + tag
+            + "<strong>" + safe(tool) + "</strong> "
             + safe(detail) + "</li>"
         )
     if not items:
@@ -334,7 +365,7 @@ def _one_run(test: dict[str, Any], run: dict[str, Any], number: int, show_detail
     if not show_detail:
         return head + "        </div>\n"
 
-    body = _steps_list(run.get("trace") or {})
+    body = _steps_list(run.get("trace") or {}, run)
     reply = run.get("final_reply")
     if reply:
         body += "          <div class=\"reply\">" + safe(reply) + "</div>\n"
@@ -374,6 +405,9 @@ def _run_info_box(results: dict[str, Any]) -> str:
     info = results.get("run_info") or {}
     summary = results.get("summary") or {}
     rows = [
+        ("Agent", str(info.get("agent") or "builtin")),
+        ("Agent framework", info.get("agent_framework") or "none"),
+        ("Guard prompt", info.get("guard_prompt_version") or "not used"),
         ("Brain", str(info.get("brain") or "") + " · " + str(info.get("model") or "")),
         ("Judge", str(info.get("judge_model") or info.get("judge_mode") or "words")),
         ("Judge prompt", info.get("judge_prompt_version") or "not used"),

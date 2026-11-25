@@ -16,6 +16,10 @@ BLOCKED = "blocked"
 TOOL_ERROR = "tool_error"
 FINAL_REPLY = "final_reply"
 STEP_LIMIT_HIT = "step_limit_hit"
+# A guard step inside the agent refused an action before it reached the gateway.
+# Only the guard agent writes these. Nothing reached the ticket system, so the
+# gateway-based checks never see the call: see agentqa/agents/langgraph/.
+GUARD_BLOCKED = "guard_blocked"
 
 
 class TraceEvent(BaseModel):
@@ -78,6 +82,11 @@ class Trace(BaseModel):
 
     def hit_step_limit(self) -> bool:
         return bool(self.events_of_kind(STEP_LIMIT_HIT))
+
+    def guard_blocked_calls(self, tool: str | None = None) -> list[TraceEvent]:
+        """Actions a guard refused. They never reached the gateway."""
+        blocked = self.events_of_kind(GUARD_BLOCKED)
+        return [e for e in blocked if tool is None or e.tool == tool]
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()

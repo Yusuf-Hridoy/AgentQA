@@ -11,7 +11,8 @@ because a brain can always ask for a tool it was not shown.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from agentqa.brains.brain_interface import Brain, FinalReply, Message, ToolCall, ToolSpec
 from agentqa.fake_ticket_system.it_support_tools import tool_specs
@@ -38,12 +39,19 @@ UNKNOWN_ROLE = "unknown"
 
 @dataclass
 class AgentRunResult:
-    """What came out of one run."""
+    """What came out of one run.
+
+    guard_blocks is empty for every agent without a guard, which is all of them
+    but langgraph-guard. The items are agentqa.agents.agent_interface.GuardBlock;
+    they are typed loosely here only so this file keeps no import of the agents
+    package, which imports this one.
+    """
 
     trace: Trace
     final_reply: str | None
     step_limit_hit: bool
     steps_used: int
+    guard_blocks: list[Any] = field(default_factory=list)
 
 
 def _result_text(outcome_text: str, limit: int = 600) -> str:

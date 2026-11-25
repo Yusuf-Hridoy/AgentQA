@@ -30,7 +30,7 @@ from agentqa.repeat_runs import trace_path_for
 
 RESULTS_FILE_NAME = "results.json"
 TRACES_FOLDER_NAME = "traces"
-RESULTS_SCHEMA_VERSION = 3
+RESULTS_SCHEMA_VERSION = 4
 
 
 def run_folder_name(when: datetime | None = None) -> str:

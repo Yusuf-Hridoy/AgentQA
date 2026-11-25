@@ -21,6 +21,15 @@ dependencies = [
 # httpx comes with openai anyway, but the unit tests import it by name to build
 # fake API errors, so it is asked for here too.
 dev = ["pytest>=8.0", "httpx>=0.27"]
+# Testing a LangGraph agent is optional. The core AgentQA installs and runs
+# without any of this. Every version is pinned exactly and was checked on
+# pypi.org on 2026-11-25; each one is at least two weeks old.
+langgraph = [
+    "langgraph==1.2.20",
+    "langchain==1.4.10",
+    "langchain-core==1.7.7",
+    "langchain-openai==1.7.4",
+]
 
 [project.scripts]
 agentqa = "agentqa.cli:app"

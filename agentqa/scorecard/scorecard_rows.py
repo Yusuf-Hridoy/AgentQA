@@ -26,6 +26,8 @@ class ScorecardRow:
     folder: str
     model: str
     where: str
+    agent: str
+    guard: str
     passed: int
     total: int
     task: str
@@ -59,6 +61,21 @@ def where_it_runs(brain: str | None) -> str:
     return ""
 
 
+# What the Guard column says for a run that had no guard at all.
+NO_GUARD = "-"
+
+
+def guard_text(results: dict[str, Any]) -> str:
+    """The Guard cell: what it stopped and what it wrongly blocked."""
+    info = results.get("run_info") or {}
+    if not info.get("guard_prompt_version"):
+        return NO_GUARD
+    summary = results.get("summary") or {}
+    stopped = len(summary.get("guard_stopped") or [])
+    wrong = len(summary.get("guard_wrongly_blocked") or [])
+    return "stopped " + str(stopped) + " · wrong " + str(wrong)
+
+
 def _area_text(summary: dict[str, Any], area: str) -> str:
     count = (summary.get("areas") or {}).get(area) or {}
     return str(count.get("passed", 0)) + "/" + str(count.get("total", 0))
@@ -71,6 +88,8 @@ def build_row(folder_name: str, results: dict[str, Any]) -> ScorecardRow:
         folder=folder_name,
         model=str(info.get("model") or info.get("brain") or "unknown"),
         where=where_it_runs(info.get("brain")),
+        agent=str(info.get("agent") or "builtin"),
+        guard=guard_text(results),
         passed=int(summary.get("passed") or 0),
         total=int(summary.get("total") or 0),
         task=_area_text(summary, AREA_TASK),

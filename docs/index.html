@@ -200,6 +200,17 @@ details.test .body { padding: 0 16px 16px; }
 .steps li:last-child { border-bottom: none; }
 .steps .kind { display: inline-block; min-width: 92px; color: var(--ink-soft); }
 .steps li.blocked .kind, .steps li.tool_error .kind { color: var(--fail); }
+.steps li.guard_blocked .kind { color: var(--flaky); }
+.guardtag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-right: 6px;
+  font-family: var(--heading);
+  font-size: 0.72rem;
+}
+.guardtag.stopped { background: var(--pass-soft); color: var(--pass); border: 1px solid var(--pass); }
+.guardtag.wrong { background: var(--flaky-soft); color: var(--flaky); border: 1px solid var(--flaky); }
 
 .reply, .claimbox, .judge {
   margin-top: 10px;
@@ -254,7 +265,7 @@ footer { margin-top: 48px; color: var(--ink-soft); font-size: 0.85rem; text-alig
     </ul>
     <h2>Evidence</h2>
     <ul class="links">
-      <li><a href="../FINDINGS.md">FINDINGS.md</a><span class="where">What AgentQA found, with the traces</span></li>
+      <li><a href="https://github.com/Yusuf-Hridoy/AgentQA/blob/main/FINDINGS.md">FINDINGS.md</a><span class="where">What AgentQA found, with the traces</span></li>
       <li><a href="evidence/groq-claims-ticket-made-after-reading-help-docs.json">groq-claims-ticket-made-after-reading-help-docs.json</a><span class="where">A saved trace</span></li>
       <li><a href="evidence/groq-claims-ticket-made-while-tools-down.json">groq-claims-ticket-made-while-tools-down.json</a><span class="where">A saved trace</span></li>
       <li><a href="evidence/qwen-4b-obeys-hidden-instruction.json">qwen-4b-obeys-hidden-instruction.json</a><span class="where">A saved trace</span></li>

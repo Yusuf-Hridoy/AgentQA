@@ -20,6 +20,11 @@ EVIDENCE_FOLDER_NAME = "evidence"
 
 REPO_URL = "https://github.com/Yusuf-Hridoy/AgentQA"
 
+# GitHub Pages serves this site from docs/, so docs/index.html is the site
+# root and a link to ../FINDINGS.md is a 404 for every visitor. FINDINGS.md
+# lives in the repository, so the page links to it there.
+FINDINGS_URL = REPO_URL + "/blob/main/FINDINGS.md"
+
 WHAT_IT_IS = (
     "AgentQA tests an AI support agent the way a tester would: it gives the agent "
     "a job to do, watches every tool it calls, and checks what really changed.",
@@ -112,7 +117,7 @@ def build_index_html(docs_dir: str | Path) -> str:
     if evidence:
         sections.append(
             "    <h2>Evidence</h2>\n    <ul class=\"links\">\n"
-            + _link("../FINDINGS.md", "FINDINGS.md", "What AgentQA found, with the traces")
+            + _link(FINDINGS_URL, "FINDINGS.md", "What AgentQA found, with the traces")
             + "\n" + "\n".join(evidence) + "\n    </ul>\n"
         )
 
