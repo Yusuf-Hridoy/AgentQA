@@ -26,7 +26,7 @@ from agentqa.run_info import build_run_info
 from agentqa.scorecard.scorecard_fairness import UnfairComparisonError, check_fair
 from agentqa.scorecard.scorecard_markdown import HEADINGS, row_cells, scorecard_markdown
 from agentqa.scorecard.scorecard_rows import NO_GUARD, build_rows, guard_text
-from tests.test_scorecard import a_run_folder, some_results
+from test_scorecard import a_run_folder, some_results
 
 runner = CliRunner()
 
